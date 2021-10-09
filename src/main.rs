@@ -70,15 +70,16 @@ async fn main() {
     };
     
     // Listen on all interfaces and whatever port the OS assigns
-    
     swarm
-    .listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port ).parse().unwrap())
+    .listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port).parse().unwrap())
     .unwrap();
 
     let (out_msg_sender, out_msg_receiver) =  channel::unbounded();
 
+    let data = new_state::<ApronService>();
+
     // Spawn away the event loop that will keep the swarm going.
-    async_std::task::spawn(network::network_event_loop(swarm, out_msg_receiver));
+    async_std::task::spawn(network::network_event_loop(swarm, out_msg_receiver, data.clone()));
 
     let p2p_handler = Data::new(
         SharedHandler { 
@@ -86,8 +87,6 @@ async fn main() {
         }
     );
 
-// if std::env::args().nth(1).unwrap() == "true" {
-    let data = new_state::<ApronService>();
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
@@ -97,20 +96,6 @@ async fn main() {
     .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
     .run()
     .await;
-// }else{
-//     let data = new_state::<ApronService>();
-//     HttpServer::new(move || {
-//         App::new()
-//             .app_data(data.clone())
-//             // .app_data(p2p_handler.clone())
-//             .configure(routes)
-//     })
-//     .bind("0.0.0.0:8889").unwrap()
-//     .run()
-//     .await;
-// }
-    
-
 }
 
 

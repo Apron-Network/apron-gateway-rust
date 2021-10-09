@@ -15,9 +15,28 @@ use libp2p::gossipsub::{
 
 use libp2p::{Swarm, gossipsub, identity, swarm::SwarmEvent, PeerId};
 
+// #[derive(Debug,Serialize, PartialEq, Clone)]
+// pub struct ApronServiceProvider {
+//   pub id: String,
+//   pub name: String,
+//   pub desc: String,
+//   pub created_at: i64,
+//   pub updated_at: i64,
+//   pub extra_detail: String,
+
+//   pub base_url: String,
+//   pub schema: String,
+// }
+
 #[derive(Debug,Serialize, PartialEq, Clone)]
 pub struct ApronService {
+  // Uniq id for service, will be generated automatically
   pub id: String,
+  // hostname provides this service, will be used to search service while forwarding requesting.
+  // pub domain_name: String,
+
+  // pub is_deleted: bool,
+
 }
 
 // #[derive(Debug,Serialize, PartialEq, Clone)]
@@ -38,17 +57,13 @@ pub async fn create_service(data: AppState::<ApronService>, p2p_handler: Data<Sh
 
   set(data, key, new_service);
 
-  // @ToDo publish data to the whole p2p network
-  // let mut handler = p2p_handler.handler.lock().unwrap();
-  // let topic = Topic::new("test-net");
-  // handler.behaviour_mut().publish(topic, "new_service2".as_bytes());
+  // publish data to the whole p2p network
    let mut sender = p2p_handler.handler.lock().unwrap();
-  sender.send("new servece".to_string()).await.unwrap();
+  sender.send(new_service2.id.clone()).await.unwrap();
 
-  println!("new service: {}", new_service2.id.clone());
+  println!("[mgmt] new service: {}", new_service2.id.clone());
 
   respond_json(new_service2)
-  // respond_json(get(data.clone(),key2).unwrap())
 }
 
 /// Get All services

@@ -7,6 +7,9 @@ use std::error::Error;
 
 use async_std::channel;
 use futures::StreamExt;
+use crate::state::new_state;
+use crate::state::{AppState,set,get,all};
+use crate::service::{ ApronService, SharedHandler};
 
 pub async fn new(
     // secret_key_seed: Option<u8>,
@@ -61,11 +64,10 @@ pub async fn new(
     )
 }
 
-
-
 pub async fn network_event_loop(
     mut swarm: Swarm<gossipsub::Gossipsub>,
     receiver: channel::Receiver<String>,
+    data: AppState::<ApronService>,
 ){
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
@@ -73,8 +75,10 @@ pub async fn network_event_loop(
     swarm.behaviour_mut().subscribe(&topic);
 
     let mut receiver = receiver.fuse();
+    
 
     loop {
+        let share_data = data.clone();
         futures::select! {
             event = swarm.select_next_some() => {
                 match event {
@@ -93,19 +97,25 @@ pub async fn network_event_loop(
                         message,
                     }) => {
                         println!(
-                            "Got message: {} from peer: {:?}",
+                            "[libp2p] receive new message {} from remote peer: {:?}",
                             String::from_utf8_lossy(&message.data),
                             peer_id
                         );
+                        // update local http gateway data.
+                        let key = String::from_utf8_lossy(&message.data).to_string();
+                        let new_service = ApronService {
+                            id: String::from_utf8_lossy(&message.data).to_string()
+                          };                  
+                        set(share_data, key, new_service);
                     },
                     _ => {}
                 }
             },
             message = receiver.select_next_some() => {
-                println!("Got message: {}", message);
+                println!("[libp2p] publish local new message to remote: {}", message);
                 swarm.behaviour_mut().publish(topic.clone(), message.as_bytes());
             }
         }
     }
-    println!("network_event_loop ended");
+    // println!("network_event_loop ended");
 }
