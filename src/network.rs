@@ -102,10 +102,9 @@ pub async fn network_event_loop(
                             peer_id
                         );
                         // update local http gateway data.
-                        let key = String::from_utf8_lossy(&message.data).to_string();
-                        let new_service = ApronService {
-                            id: String::from_utf8_lossy(&message.data).to_string()
-                          };                  
+                        let value = String::from_utf8_lossy(&message.data).to_string();
+                        let new_service: ApronService = serde_json::from_str(&value).unwrap();
+                        let key = new_service.id.clone();
                         set(share_data, key, new_service);
                     },
                     _ => {}

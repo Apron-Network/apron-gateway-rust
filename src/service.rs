@@ -1,6 +1,6 @@
 use crate::helpers::{respond_json, respond_ok};
 use crate::state::{AppState,set,get,all};
-use actix_web::web::{Data, HttpResponse, Json, Path};
+use actix_web::web::{ Data, HttpResponse, Json, Path};
 use actix_web::Error;
 use serde::Serialize;
 use uuid::Uuid;
@@ -14,28 +14,32 @@ use libp2p::gossipsub::{
 };
 
 use libp2p::{Swarm, gossipsub, identity, swarm::SwarmEvent, PeerId};
+// use serde_derive::Deserialize;
+use serde::Deserialize;
 
-// #[derive(Debug,Serialize, PartialEq, Clone)]
-// pub struct ApronServiceProvider {
-//   pub id: String,
-//   pub name: String,
-//   pub desc: String,
-//   pub created_at: i64,
-//   pub updated_at: i64,
-//   pub extra_detail: String,
+#[derive(Deserialize,Debug,Serialize, PartialEq, Clone)]
+pub struct ApronServiceProvider {
+  pub id: String,
+  pub name: String,
+  pub desc: String,
+  pub base_url: String,
+  pub schema: String,
 
-//   pub base_url: String,
-//   pub schema: String,
-// }
+  // pub created_at: i64,
+  // pub updated_at: i64,
+  // pub extra_detail: String,
+}
 
-#[derive(Debug,Serialize, PartialEq, Clone)]
+#[derive(Deserialize,Debug,Serialize, PartialEq, Clone)]
 pub struct ApronService {
   // Uniq id for service, will be generated automatically
   pub id: String,
   // hostname provides this service, will be used to search service while forwarding requesting.
-  // pub domain_name: String,
+  pub domain_name: String,
 
-  // pub is_deleted: bool,
+  pub providers: Vec<ApronServiceProvider>,
+
+  pub is_deleted: bool,
 
 }
 
@@ -44,14 +48,18 @@ pub struct SharedHandler {
   pub handler: Mutex<channel::Sender<String>>,
 }
 
-/// Create a service
-pub async fn create_service(data: AppState::<ApronService>, p2p_handler: Data<SharedHandler>) -> Result<Json<ApronService>, Error> {
+/// Create a service with data-raw.
+pub async fn create_service(info: Json<ApronService>, data: AppState::<ApronService>, p2p_handler: Data<SharedHandler>) -> Result<Json<ApronService>, Error> {
 
-  let key = Uuid::new_v4().to_string();
+  let key = info.id.clone();
+  let new_service = info.into_inner();
 
-  let new_service = ApronService {
-    id: key.clone()
-  };
+  println!("new service:{}", serde_json::to_string(&new_service).unwrap());
+
+  // let new_service = ApronService {
+  //   id: info.id,
+  //   domain_name: info.
+  // };
 
   let new_service2 = new_service.clone();
 
@@ -59,9 +67,9 @@ pub async fn create_service(data: AppState::<ApronService>, p2p_handler: Data<Sh
 
   // publish data to the whole p2p network
    let mut sender = p2p_handler.handler.lock().unwrap();
-  sender.send(new_service2.id.clone()).await.unwrap();
+  sender.send(serde_json::to_string(&new_service2).unwrap()).await.unwrap();
 
-  println!("[mgmt] new service: {}", new_service2.id.clone());
+  println!("[mgmt] new service: {}", serde_json::to_string(&new_service2).unwrap());
 
   respond_json(new_service2)
 }
