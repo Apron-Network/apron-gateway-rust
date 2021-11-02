@@ -86,15 +86,29 @@ async fn main() {
         }
     );
 
-    HttpServer::new(move || {
+    let mgmt_service = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
             .configure(routes)
     })
-    .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
-    .run()
-    .await;
+        .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
+        .run();
+
+    let fwd_service = forward_service::ForwardService {
+        port: opt.forward_port,
+    };
+
+    fwd_service.start();
+
+    // let fwd_service = HttpServer::new(move || {
+    //     App::new()
+    //         .app_data(data.clone())
+    //         .app_data(p2p_handler.clone())
+    //         .configure(routes)
+    // })
+    // .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
+    // .run();
 }
 
 
