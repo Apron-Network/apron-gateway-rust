@@ -1,29 +1,30 @@
-use futures::prelude::*;
-use crate::routes::routes;
-use actix_web::{get, post, web, App, web::Data, HttpResponse, HttpServer, Responder};
-use crate::state::new_state;
-use crate::state::{AppState,set,get,all};
-use crate::service::{ ApronService, SharedHandler};
-
-use libp2p::gossipsub::MessageId;
-use libp2p::gossipsub::{
-    GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
-};
-use libp2p::{multiaddr::Protocol,Swarm ,Multiaddr, gossipsub, identity, swarm::SwarmEvent, PeerId};
-
-use uuid::Uuid;
-use std::sync::Mutex;
-use async_std::{io, task};
-// use futures::channel::{mpsc, oneshot};
-use async_std::channel;
-use std::thread;
+extern crate forward_service;
 
 use std::{
     error::Error,
     task::{Context, Poll},
 };
+use std::sync::Mutex;
+use std::thread;
 
+use actix_web::{App, get, HttpResponse, HttpServer, post, Responder, web, web::Data};
+use async_std::{io, task};
+// use futures::channel::{mpsc, oneshot};
+use async_std::channel;
+use futures::prelude::*;
+use libp2p::{gossipsub, identity, Multiaddr, multiaddr::Protocol, PeerId, Swarm, swarm::SwarmEvent};
+use libp2p::gossipsub::{
+    GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
+};
+use libp2p::gossipsub::MessageId;
 use structopt::StructOpt;
+use uuid::Uuid;
+
+use crate::routes::routes;
+use crate::service::{ApronService, SharedHandler};
+use crate::state::{all, AppState, get, set};
+use crate::state::new_state;
+
 
 mod routes;
 mod service;
@@ -38,26 +39,24 @@ struct Opt {
     #[structopt(long)]
     peer: Option<Multiaddr>,
 
-    #[structopt(default_value = "2145",long)]
+    #[structopt(default_value = "2145", long)]
     p2p_port: i32,
 
-    #[structopt(default_value = "8080",long)]
+    #[structopt(default_value = "8080", long)]
     forward_port: i32,
 
     #[structopt(default_value = "8082", long)]
-    mgmt_port:i32,
+    mgmt_port: i32,
 
     #[structopt(default_value = "apron-test-net", long)]
     rendezvous: String,
 }
 
 
-
 #[actix_web::main]
 async fn main() {
-
     let opt = Opt::from_args();
-    
+
     let mut swarm = network::new().await.unwrap();
 
     // In case the user provided an address of a peer on the CLI, dial it.
@@ -68,13 +67,13 @@ async fn main() {
             Err(e) => println!("Dial {:?} failed: {:?}", dialing, e),
         };
     };
-    
+
     // Listen on all interfaces and whatever port the OS assigns
     swarm
-    .listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port).parse().unwrap())
-    .unwrap();
+        .listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port).parse().unwrap())
+        .unwrap();
 
-    let (out_msg_sender, out_msg_receiver) =  channel::unbounded();
+    let (out_msg_sender, out_msg_receiver) = channel::unbounded();
 
     let data = new_state::<ApronService>();
 
@@ -82,7 +81,7 @@ async fn main() {
     async_std::task::spawn(network::network_event_loop(swarm, out_msg_receiver, data.clone()));
 
     let p2p_handler = Data::new(
-        SharedHandler { 
+        SharedHandler {
             handler: Mutex::new(out_msg_sender),
         }
     );
