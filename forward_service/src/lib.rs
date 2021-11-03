@@ -1,6 +1,5 @@
-use std::io::{Error, Result};
-
 use actix_web::{App, HttpServer, middleware, web};
+use std::io::{Error, Result};
 
 mod handlers;
 mod utils;
@@ -17,8 +16,8 @@ impl ForwardService {
             App::new()
                 .wrap(middleware::Logger::default())
                 .wrap(middleware::NormalizePath::default())
-            .route("/v{ver}/{user_key}/{req_path:.*}", web::to(handlers::forward_http_proxy_request))
-            .route("/ws/v{ver}/{user_key}/{req_path:.*}", web::get().to(handlers::forward_ws_proxy_request))
+                .route("/v{ver}/{user_key}/{req_path:.*}", web::to(handlers::forward_http_proxy_request))
+                .route("/ws/v{ver}/{user_key}/{req_path:.*}", web::get().to(handlers::forward_ws_proxy_request))
         })
             .bind("0.0.0.0:8970")? // TODO: fprintf address with port
             .run();
