@@ -54,7 +54,7 @@ struct Opt {
 
 
 #[actix_web::main]
-async fn main() {
+async fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
 
     let mut swarm = network::new().await.unwrap();
@@ -92,23 +92,16 @@ async fn main() {
             .app_data(p2p_handler.clone())
             .configure(routes)
     })
-        .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
+        .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
         .run();
 
     let fwd_service = forward_service::ForwardService {
         port: opt.forward_port,
-    };
+    }.start();
 
-    fwd_service.start();
+    future::try_join(mgmt_service, fwd_service).await?;
 
-    // let fwd_service = HttpServer::new(move || {
-    //     App::new()
-    //         .app_data(data.clone())
-    //         .app_data(p2p_handler.clone())
-    //         .configure(routes)
-    // })
-    // .bind(format!("0.0.0.0:{}", opt.mgmt_port)).unwrap()
-    // .run();
+    Ok(())
 }
 
 
