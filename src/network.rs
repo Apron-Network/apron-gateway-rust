@@ -1,19 +1,55 @@
+use async_std::io;
+use futures::prelude::*;
 use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
-use libp2p::{Swarm ,Multiaddr, gossipsub, identity, swarm::SwarmEvent, PeerId};
+use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 use std::error::Error;
 
+use crate::service::{ApronService, SharedHandler};
+use crate::state::new_state;
+use crate::state::{all, get, set, AppState};
 use async_std::channel;
 use futures::StreamExt;
-use crate::state::new_state;
-use crate::state::{AppState,set,get,all};
-use crate::service::{ ApronService, SharedHandler};
 
-pub async fn new(
-    // secret_key_seed: Option<u8>,
-) -> Result<Swarm<gossipsub::Gossipsub>, Box<dyn Error>> {
+use async_trait::async_trait;
+use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
+use libp2p::request_response::{
+    ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
+    RequestResponseMessage, ResponseChannel,
+};
+use libp2p::swarm::{ProtocolsHandlerUpgrErr, SwarmBuilder};
+use libp2p::NetworkBehaviour;
+use std::iter;
+
+#[derive(NetworkBehaviour)]
+#[behaviour(event_process = false, out_event = "ComposedEvent")]
+pub struct ComposedBehaviour {
+    pub request_response: RequestResponse<DataExchangeCodec>,
+    pub gossipsub: gossipsub::Gossipsub,
+}
+
+#[derive(Debug)]
+pub enum ComposedEvent {
+    RequestResponse(RequestResponseEvent<FileRequest, FileResponse>),
+    Gossipsub(GossipsubEvent),
+}
+
+impl From<RequestResponseEvent<FileRequest, FileResponse>> for ComposedEvent {
+    fn from(event: RequestResponseEvent<FileRequest, FileResponse>) -> Self {
+        ComposedEvent::RequestResponse(event)
+    }
+}
+
+impl From<GossipsubEvent> for ComposedEvent {
+    fn from(event: GossipsubEvent) -> Self {
+        ComposedEvent::Gossipsub(event)
+    }
+}
+
+pub async fn new(// secret_key_seed: Option<u8>,
+) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
     // let id_keys = match secret_key_seed {
     //     Some(seed) => {
@@ -35,7 +71,7 @@ pub async fn new(
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
     let transport = libp2p::development_transport(local_key.clone()).await;
-    
+
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
 
@@ -49,33 +85,43 @@ pub async fn new(
         let mut gossipsub: gossipsub::Gossipsub =
             gossipsub::Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
                 .expect("Correct configuration");
-        
+
         // subscribes to our topic
         gossipsub.subscribe(&topic).unwrap();
-        
+
+        let mut request_response = RequestResponse::new(
+            DataExchangeCodec(),
+            iter::once((DataExchangeProtocol(), ProtocolSupport::Full)),
+            Default::default(),
+        );
+
         // build the swarm
-        libp2p::Swarm::new(transport.unwrap(), gossipsub, local_peer_id)
+        libp2p::Swarm::new(
+            transport.unwrap(),
+            ComposedBehaviour {
+                request_response,
+                gossipsub,
+            },
+            local_peer_id,
+        )
     };
 
     // let (out_msg_sender, out_msg_receiver) =  channel::unbounded();
 
-    Ok(
-        swarm
-    )
+    Ok(swarm)
 }
 
 pub async fn network_event_loop(
-    mut swarm: Swarm<gossipsub::Gossipsub>,
+    mut swarm: Swarm<ComposedBehaviour>,
     receiver: channel::Receiver<String>,
-    data: AppState::<ApronService>,
-){
+    data: AppState<ApronService>,
+) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
     println!("network_event_loop started");
-    swarm.behaviour_mut().subscribe(&topic);
+    swarm.behaviour_mut().gossipsub.subscribe(&topic);
 
     let mut receiver = receiver.fuse();
-    
 
     loop {
         let share_data = data.clone();
@@ -91,11 +137,12 @@ pub async fn network_event_loop(
                     SwarmEvent::ConnectionClosed { peer_id,.. } => {
                         println!("Disconnected from {}", peer_id);
                     },
-                    SwarmEvent::Behaviour(GossipsubEvent::Message {
+                    SwarmEvent::Behaviour(ComposedEvent::Gossipsub(
+                     GossipsubEvent::Message {
                         propagation_source: peer_id,
                         message_id: id,
                         message,
-                    }) => {
+                    })) => {
                         println!(
                             "[libp2p] receive new message {} from remote peer: {:?}",
                             String::from_utf8_lossy(&message.data),
@@ -107,14 +154,123 @@ pub async fn network_event_loop(
                         let key = new_service.id.clone();
                         set(share_data, key, new_service);
                     },
+                    SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
+                        RequestResponseEvent::Message { message, .. },
+                    )) => {}
+                    SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
+                        RequestResponseEvent::OutboundFailure {
+                            request_id, error, ..
+                        },
+                    )) =>{}
+                    SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
+                        RequestResponseEvent::ResponseSent { .. },
+                    )) => {}
+
                     _ => {}
                 }
             },
             message = receiver.select_next_some() => {
                 println!("[libp2p] publish local new message to remote: {}", message);
-                swarm.behaviour_mut().publish(topic.clone(), message.as_bytes());
+                swarm.behaviour_mut().gossipsub.publish(topic.clone(), message.as_bytes());
             }
         }
     }
     // println!("network_event_loop ended");
+}
+
+#[derive(Debug, Clone)]
+pub struct DataExchangeProtocol();
+#[derive(Clone)]
+pub struct DataExchangeCodec();
+#[derive(Debug, Clone, PartialEq, Eq)]
+// struct FileRequest {
+//     schema: String,
+//     data: String,
+// }
+pub struct FileRequest(Vec<u8>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileResponse(Vec<u8>);
+
+//    pub struct Payload {
+//        pub schema: String,
+//        pub data: Vec<u8>,
+//    }
+
+impl ProtocolName for DataExchangeProtocol {
+    fn protocol_name(&self) -> &[u8] {
+        "/file-exchange/1".as_bytes()
+    }
+}
+
+#[async_trait]
+impl RequestResponseCodec for DataExchangeCodec {
+    type Protocol = DataExchangeProtocol;
+    type Request = FileRequest;
+    type Response = FileResponse;
+
+    async fn read_request<T>(
+        &mut self,
+        _: &DataExchangeProtocol,
+        io: &mut T,
+    ) -> io::Result<Self::Request>
+    where
+        T: AsyncRead + Unpin + Send,
+    {
+        let vec = read_length_prefixed(io, 1_000_000).await?;
+
+        if vec.is_empty() {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+
+        Ok(FileRequest(vec))
+        // Ok(FileRequest(String::from_utf8(vec).unwrap()))
+    }
+
+    async fn read_response<T>(
+        &mut self,
+        _: &DataExchangeProtocol,
+        io: &mut T,
+    ) -> io::Result<Self::Response>
+    where
+        T: AsyncRead + Unpin + Send,
+    {
+        let vec = read_length_prefixed(io, 1_000_000).await?;
+
+        if vec.is_empty() {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+
+        Ok(FileResponse(vec))
+        //  Ok(FileResponse(String::from_utf8(vec).unwrap()))
+    }
+
+    async fn write_request<T>(
+        &mut self,
+        _: &DataExchangeProtocol,
+        io: &mut T,
+        FileRequest(data): FileRequest,
+    ) -> io::Result<()>
+    where
+        T: AsyncWrite + Unpin + Send,
+    {
+        write_length_prefixed(io, data).await?;
+        io.close().await?;
+
+        Ok(())
+    }
+
+    async fn write_response<T>(
+        &mut self,
+        _: &DataExchangeProtocol,
+        io: &mut T,
+        FileResponse(data): FileResponse,
+    ) -> io::Result<()>
+    where
+        T: AsyncWrite + Unpin + Send,
+    {
+        write_length_prefixed(io, data).await?;
+        io.close().await?;
+
+        Ok(())
+    }
 }
