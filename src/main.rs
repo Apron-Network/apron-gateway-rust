@@ -1,36 +1,37 @@
 extern crate forward_service;
 
+use std::sync::Mutex;
+use std::thread;
 use std::{
     error::Error,
     task::{Context, Poll},
 };
-use std::sync::Mutex;
-use std::thread;
 
-use actix_web::{App, get, HttpResponse, HttpServer, post, Responder, web, web::Data};
+use actix_web::{get, post, web, web::Data, App, HttpResponse, HttpServer, Responder};
 use async_std::{io, task};
 // use futures::channel::{mpsc, oneshot};
 use async_std::channel;
 use futures::prelude::*;
-use libp2p::{gossipsub, identity, Multiaddr, multiaddr::Protocol, PeerId, Swarm, swarm::SwarmEvent};
+use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
-use libp2p::gossipsub::MessageId;
+use libp2p::{
+    gossipsub, identity, multiaddr::Protocol, swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
+};
 use structopt::StructOpt;
 use uuid::Uuid;
 
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
-use crate::state::{all, AppState, get, set};
 use crate::state::new_state;
+use crate::state::{all, get, set, AppState};
 
-
+mod helpers;
+mod network;
 mod routes;
 mod service;
-mod helpers;
 mod state;
-mod network;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "apron gateway")]
@@ -52,7 +53,6 @@ struct Opt {
     rendezvous: String,
 }
 
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let opt = Opt::from_args();
@@ -70,7 +70,11 @@ async fn main() -> std::io::Result<()> {
 
     // Listen on all interfaces and whatever port the OS assigns
     swarm
-        .listen_on(format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port).parse().unwrap())
+        .listen_on(
+            format!("/ip4/0.0.0.0/tcp/{}", opt.p2p_port)
+                .parse()
+                .unwrap(),
+        )
         .unwrap();
 
     let (out_msg_sender, out_msg_receiver) = channel::unbounded();
@@ -78,13 +82,15 @@ async fn main() -> std::io::Result<()> {
     let data = new_state::<ApronService>();
 
     // Spawn away the event loop that will keep the swarm going.
-    async_std::task::spawn(network::network_event_loop(swarm, out_msg_receiver, data.clone()));
+    async_std::task::spawn(network::network_event_loop(
+        swarm,
+        out_msg_receiver,
+        data.clone(),
+    ));
 
-    let p2p_handler = Data::new(
-        SharedHandler {
-            handler: Mutex::new(out_msg_sender),
-        }
-    );
+    let p2p_handler = Data::new(SharedHandler {
+        handler: Mutex::new(out_msg_sender),
+    });
 
     let mgmt_service = HttpServer::new(move || {
         App::new()
@@ -92,16 +98,15 @@ async fn main() -> std::io::Result<()> {
             .app_data(p2p_handler.clone())
             .configure(routes)
     })
-        .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
-        .run();
+    .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
+    .run();
 
     let fwd_service = forward_service::ForwardService {
         port: opt.forward_port,
-    }.start();
+    }
+    .start();
 
     future::try_join(mgmt_service, fwd_service).await?;
 
     Ok(())
 }
-
-

@@ -48,6 +48,21 @@ impl From<GossipsubEvent> for ComposedEvent {
     }
 }
 
+#[derive(Debug)]
+pub enum Command {
+    PublishGossip {
+        data: Vec<u8>,
+    },
+    SendRequest {
+        peer: PeerId,
+        data: Vec<u8>,
+    },
+    SendResponse {
+        data: Vec<u8>,
+        channel: ResponseChannel<FileResponse>,
+    },
+}
+
 pub async fn new(// secret_key_seed: Option<u8>,
 ) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
@@ -113,7 +128,7 @@ pub async fn new(// secret_key_seed: Option<u8>,
 
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
-    receiver: channel::Receiver<String>,
+    receiver: channel::Receiver<Command>,
     data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -156,7 +171,21 @@ pub async fn network_event_loop(
                     },
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::Message { message, .. },
-                    )) => {}
+                    )) => match message {
+                        RequestResponseMessage::Request {
+                            request, channel, ..
+                        } => {
+                            // recevie request message.
+                            // forward message to Service Gateway.
+
+                        }
+                        RequestResponseMessage::Response {
+                            request_id,
+                            response,
+                        } => {
+                            // receive response message.
+                        }
+                    }
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::OutboundFailure {
                             request_id, error, ..
@@ -169,9 +198,24 @@ pub async fn network_event_loop(
                     _ => {}
                 }
             },
-            message = receiver.select_next_some() => {
-                println!("[libp2p] publish local new message to remote: {}", message);
-                swarm.behaviour_mut().gossipsub.publish(topic.clone(), message.as_bytes());
+            command = receiver.next() =>  {
+                // recevie command outside of event loop.
+                match command {
+                    Some(c) => match c {
+                        Command::PublishGossip { data } => {
+                            println!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
+                            swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
+                        },
+                        Command::SendRequest { peer, data } => {
+                            let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
+                        },
+                        Command::SendResponse { data, channel} => {
+                            swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
+                        },
+                    }
+                    None => {}
+                }
+
             }
         }
     }
