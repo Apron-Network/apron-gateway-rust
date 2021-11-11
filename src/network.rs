@@ -170,20 +170,35 @@ pub async fn network_event_loop(
                         set(share_data, key, new_service);
                     },
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
-                        RequestResponseEvent::Message { message, .. },
+                        RequestResponseEvent::Message { peer, message },
                     )) => match message {
                         RequestResponseMessage::Request {
-                            request, channel, ..
+                             request, channel, ..
                         } => {
-                            // @Todo recevie request message from outside.
-                            // @Todo forward message to Service Gateway.
+                            println!("Request from Peer id {:?}", peer);
+                            // get data from request. Currently only for http.
+                            // the data is String
+                            println!("Data is {:?}", String::from_utf8_lossy(&request.0));
+
+                            // @Todo forward message to Service Gateway
+
+                            // The response is sent using another request
+                            // Send Ack to remote
+                            swarm.behaviour_mut()
+                            .request_response
+                            .send_response(channel, FileResponse(String::from("ok").into_bytes()));
 
                         }
                         RequestResponseMessage::Response {
                             request_id,
                             response,
                         } => {
-                            // @Todo receive response message from outside.
+                            println!(
+                                "recevie request {:?} Ack from {:?}: {:?}",
+                                request_id,
+                                peer,
+                                String::from_utf8_lossy(&response.0).to_string()
+                            );
                         }
                     }
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
