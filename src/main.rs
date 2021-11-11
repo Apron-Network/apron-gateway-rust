@@ -25,16 +25,16 @@ use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
 use crate::state::{all, get, set, AppState};
 
+mod forward_service;
+mod forward_service_actors;
+mod forward_service_models;
+mod forward_service_utils;
+mod fwd_handlers;
 mod helpers;
 mod network;
 mod routes;
 mod service;
 mod state;
-mod forward_service;
-mod forward_service_handlers;
-mod forward_service_actors;
-mod forward_service_models;
-mod forward_service_utils;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "apron gateway")]
@@ -95,6 +95,13 @@ async fn main() -> std::io::Result<()> {
         handler: Mutex::new(command_sender),
     });
 
+    let fwd_service = forward_service::ForwardService {
+        port: opt.forward_port,
+        p2p_handler: p2p_handler.clone(),
+        local_peer_id: swarm.local_peer_id().clone(),
+    }
+    .start();
+
     let mgmt_service = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
@@ -103,12 +110,6 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
-
-    let fwd_service = forward_service::ForwardService {
-        port: opt.forward_port,
-        p2p_handler: p2p_handler.clone(),
-    }
-    .start();
 
     future::try_join(mgmt_service, fwd_service).await?;
 
