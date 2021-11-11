@@ -223,6 +223,7 @@ pub async fn network_event_loop(
                             swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
                         },
                         Command::SendRequest { peer, data } => {
+                            println!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
                         },
                         Command::SendResponse { data, channel} => {

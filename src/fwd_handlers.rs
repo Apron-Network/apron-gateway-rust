@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::io::Error;
+use std::str::FromStr;
 
 use actix_web::http::StatusCode;
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
+use libp2p::core::network::Peer;
 use log::debug;
 use url::Url;
 
@@ -78,8 +80,9 @@ pub(crate) async fn forward_http_proxy_request(
     raw_body: web::Bytes,
     req: HttpRequest,
     p2p_handler: Data<SharedHandler>,
-    local_peer_id: String,
+    local_peer_id: Data<PeerId>,
 ) -> impl Responder {
+    println!("Local peer id: {:?}", local_peer_id);
     // Parse request from client side
     // TODO: Split http and websocket
     let req_info = forward_service_utils::parse_request(query_args, raw_body, &req);
@@ -91,7 +94,8 @@ pub(crate) async fn forward_http_proxy_request(
     println!("[fwd] http request: {}", &message);
     command_sender
         .send(Command::SendRequest {
-            peer: local_peer_id.parse().unwrap(),
+            // peer: PeerId::from_str(local_peer_id.as_str()).unwrap(),
+            peer: *local_peer_id.get_ref(),
             data: message.into_bytes(),
         })
         .await

@@ -80,7 +80,7 @@ async fn main() -> std::io::Result<()> {
         )
         .unwrap();
 
-    let peer_id = swarm.local_peer_id().clone().to_string();
+    let peer_id = swarm.local_peer_id().clone();
 
     let (command_sender, command_receiver) = channel::unbounded();
 
