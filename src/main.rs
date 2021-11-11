@@ -77,19 +77,19 @@ async fn main() -> std::io::Result<()> {
         )
         .unwrap();
 
-    let (out_msg_sender, out_msg_receiver) = channel::unbounded();
+    let (command_sender, command_receiver) = channel::unbounded();
 
     let data = new_state::<ApronService>();
 
     // Spawn away the event loop that will keep the swarm going.
     async_std::task::spawn(network::network_event_loop(
         swarm,
-        out_msg_receiver,
+        command_receiver,
         data.clone(),
     ));
 
     let p2p_handler = Data::new(SharedHandler {
-        handler: Mutex::new(out_msg_sender),
+        handler: Mutex::new(command_sender),
     });
 
     let mgmt_service = HttpServer::new(move || {

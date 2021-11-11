@@ -91,7 +91,7 @@ pub async fn new(// secret_key_seed: Option<u8>,
     let topic = Topic::new("apron-test-net");
 
     // Create a Swarm to manage peers and events
-    let mut swarm = {
+    let swarm = {
         // Set a custom gossipsub
         let gossipsub_config = gossipsub::GossipsubConfigBuilder::default()
             .build()
@@ -104,7 +104,7 @@ pub async fn new(// secret_key_seed: Option<u8>,
         // subscribes to our topic
         gossipsub.subscribe(&topic).unwrap();
 
-        let mut request_response = RequestResponse::new(
+        let request_response = RequestResponse::new(
             DataExchangeCodec(),
             iter::once((DataExchangeProtocol(), ProtocolSupport::Full)),
             Default::default(),
@@ -121,7 +121,7 @@ pub async fn new(// secret_key_seed: Option<u8>,
         )
     };
 
-    // let (out_msg_sender, out_msg_receiver) =  channel::unbounded();
+    // let (command_sender, command_receiver) =  channel::unbounded();
 
     Ok(swarm)
 }
@@ -175,15 +175,15 @@ pub async fn network_event_loop(
                         RequestResponseMessage::Request {
                             request, channel, ..
                         } => {
-                            // recevie request message.
-                            // forward message to Service Gateway.
+                            // @Todo recevie request message from outside.
+                            // @Todo forward message to Service Gateway.
 
                         }
                         RequestResponseMessage::Response {
                             request_id,
                             response,
                         } => {
-                            // receive response message.
+                            // @Todo receive response message from outside.
                         }
                     }
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(

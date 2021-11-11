@@ -62,19 +62,14 @@ pub async fn create_service(
         serde_json::to_string(&new_service).unwrap()
     );
 
-    // let new_service = ApronService {
-    //   id: info.id,
-    //   domain_name: info.
-    // };
-
     let new_service2 = new_service.clone();
 
     set(data, key, new_service);
 
     // publish data to the whole p2p network
-    let mut sender = p2p_handler.handler.lock().unwrap();
+    let command_sender = p2p_handler.handler.lock().unwrap();
     let message = serde_json::to_string(&new_service2).unwrap();
-    sender
+    command_sender
         .send(Command::PublishGossip {
             data: message.into_bytes(),
         })
