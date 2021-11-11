@@ -80,6 +80,8 @@ async fn main() -> std::io::Result<()> {
         )
         .unwrap();
 
+    let peer_id = swarm.local_peer_id().clone().to_string();
+
     let (command_sender, command_receiver) = channel::unbounded();
 
     let data = new_state::<ApronService>();
@@ -98,7 +100,7 @@ async fn main() -> std::io::Result<()> {
     let fwd_service = forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
-        local_peer_id: swarm.local_peer_id().clone(),
+        peer_id,
     }
     .start();
 

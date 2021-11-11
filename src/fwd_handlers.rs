@@ -78,7 +78,7 @@ pub(crate) async fn forward_http_proxy_request(
     raw_body: web::Bytes,
     req: HttpRequest,
     p2p_handler: Data<SharedHandler>,
-    local_peer_id: PeerId,
+    local_peer_id: String,
 ) -> impl Responder {
     // Parse request from client side
     // TODO: Split http and websocket
@@ -88,15 +88,14 @@ pub(crate) async fn forward_http_proxy_request(
     // TODO: missing fn: send_via_stream
     let command_sender = p2p_handler.handler.lock().unwrap();
     let message = "foobar".to_string();
+    println!("[fwd] http request: {}", &message);
     command_sender
         .send(Command::SendRequest {
-            peer: local_peer_id,
+            peer: local_peer_id.parse().unwrap(),
             data: message.into_bytes(),
         })
         .await
         .unwrap();
-
-    println!("[fwd] http request: {}", message);
 
     // Build request sent to forwarded service
     let resp_body = send_http_request(req_info).await.unwrap();

@@ -14,10 +14,11 @@ use crate::fwd_handlers::{forward_http_proxy_request, forward_ws_proxy_request};
 use crate::service::{ApronService, SharedHandler};
 use crate::PeerId;
 
+#[derive(Clone)]
 pub struct ForwardService {
     pub port: i32,
     pub p2p_handler: web::Data<SharedHandler>,
-    pub local_peer_id: PeerId,
+    pub peer_id: String,
 }
 
 impl ForwardService {
@@ -30,7 +31,7 @@ impl ForwardService {
                 .wrap(middleware::Logger::default())
                 .wrap(middleware::NormalizePath::default())
                 .app_data(self.p2p_handler.clone())
-                .app_data(self.local_peer_id.clone())
+                .app_data(self.peer_id.clone())
                 .route(
                     "/v{ver}/{user_key}/{req_path:.*}",
                     web::to(forward_http_proxy_request),
