@@ -11,7 +11,7 @@ use futures::stream::SplitSink;
 use futures::StreamExt;
 use log::{debug, error, info};
 
-use crate::models::{ProxyData, TestWsMsg};
+use crate::forward_service_models::{ProxyData, TestWsMsg};
 
 // Service side actor
 pub(crate) struct ServiceSideWsActor {

@@ -1,5 +1,3 @@
-extern crate forward_service;
-
 use std::sync::Mutex;
 use std::thread;
 use std::{
@@ -32,6 +30,11 @@ mod network;
 mod routes;
 mod service;
 mod state;
+mod forward_service;
+mod forward_service_handlers;
+mod forward_service_actors;
+mod forward_service_models;
+mod forward_service_utils;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "apron gateway")]
@@ -103,6 +106,7 @@ async fn main() -> std::io::Result<()> {
 
     let fwd_service = forward_service::ForwardService {
         port: opt.forward_port,
+        p2p_handler: p2p_handler.clone(),
     }
     .start();
 

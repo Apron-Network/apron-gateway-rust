@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_web::{HttpRequest, web};
 use log::{info, warn};
 
-use crate::models::ProxyRequestInfo;
+use crate::forward_service_models::ProxyRequestInfo;
 
 pub(crate) fn parse_request(query_args: web::Query<HashMap<String, String>>, raw_body: web::Bytes, req: &HttpRequest) -> ProxyRequestInfo {
     let mut req_info = ProxyRequestInfo {

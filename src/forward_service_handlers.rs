@@ -1,16 +1,15 @@
+use std::collections::HashMap;
+use std::io::Error;
+
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actix_web::http::StatusCode;
 use actix_web_actors::ws;
 use log::debug;
-use std::collections::HashMap;
-use std::io::Error;
 use url::Url;
 
-use crate::models;
-use crate::utils;
-use crate::actors;
+use crate::{forward_service_actors, forward_service_models, forward_service_utils};
 
-async fn send_http_request(req_info: models::ProxyRequestInfo) -> Result<models::ProxyData, Error> {
+async fn send_http_request(req_info: forward_service_models::ProxyRequestInfo) -> Result<forward_service_models::ProxyData, Error> {
     let client = actix_web::client::Client::new();
 
     // TODO: The base service URL should be replaced with registered service data
@@ -34,7 +33,7 @@ async fn send_http_request(req_info: models::ProxyRequestInfo) -> Result<models:
         client_req = client_req.header(key, val.to_owned());
     }
 
-    let mut apron_proxy_data = models::ProxyData {
+    let mut apron_proxy_data = forward_service_models::ProxyData {
         channel_id: "".to_string(),
         data: vec![],
     };
@@ -66,7 +65,7 @@ async fn send_http_request(req_info: models::ProxyRequestInfo) -> Result<models:
 pub(crate) async fn forward_http_proxy_request(query_args: web::Query<HashMap<String, String>>, raw_body: web::Bytes, req: HttpRequest) -> impl Responder {
     // Parse request from client side
     // TODO: Split http and websocket
-    let req_info = utils::parse_request(query_args, raw_body, &req);
+    let req_info = forward_service_utils::parse_request(query_args, raw_body, &req);
 
     // For p2p environment, the req_info should be sent to service side gateway via stream
     // TODO: missing fn: send_via_stream
@@ -81,10 +80,10 @@ pub(crate) async fn forward_http_proxy_request(query_args: web::Query<HashMap<St
 }
 
 pub(crate) async fn forward_ws_proxy_request(query_args: web::Query<HashMap<String, String>>, req: HttpRequest, stream: web::Payload) -> impl Responder {
-    let req_info = utils::parse_request(query_args, web::Bytes::new(), &req);
+    let req_info = forward_service_utils::parse_request(query_args, web::Bytes::new(), &req);
     debug!("ClientSideGateway: Req info: {:?}", req_info);
     // TODO: Change to configured ws server addr
-    let resp = ws::start(actors::ClientSideWsActor {
+    let resp = ws::start(forward_service_actors::ClientSideWsActor {
         service_uri: "ws://localhost:10000",
         addr: None,
     }, &req, stream);

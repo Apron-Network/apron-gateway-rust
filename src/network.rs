@@ -175,6 +175,7 @@ pub async fn network_event_loop(
                         RequestResponseMessage::Request {
                              request, channel, ..
                         } => {
+                            println!("[libp2p] receive request message: {:?}, channel: {:?}", request, channel);
                             println!("Request from Peer id {:?}", peer);
                             // get data from request. Currently only for http.
                             // the data is String
@@ -187,12 +188,12 @@ pub async fn network_event_loop(
                             swarm.behaviour_mut()
                             .request_response
                             .send_response(channel, FileResponse(String::from("ok").into_bytes()));
-
                         }
                         RequestResponseMessage::Response {
                             request_id,
                             response,
                         } => {
+                            println!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
                             println!(
                                 "recevie request {:?} Ack from {:?}: {:?}",
                                 request_id,
