@@ -57,7 +57,7 @@ struct Opt {
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
 
     let mut swarm = network::new().await.unwrap();
@@ -65,6 +65,14 @@ async fn main() -> std::io::Result<()> {
     // In case the user provided an address of a peer on the CLI, dial it.
     if let Some(to_dial) = opt.peer {
         let dialing = to_dial.clone();
+        let peer_id = match dialing.iter().last() {
+            Some(Protocol::P2p(hash)) => PeerId::from_multihash(hash).expect("Valid hash."),
+            _ => return Err("Expect peer multiaddr to contain peer ID.".into()),
+        };
+        swarm
+            .behaviour_mut()
+            .kademlia
+            .add_address(&peer_id, to_dial.clone());
         match swarm.dial_addr(to_dial) {
             Ok(_) => println!("Dialed {:?}", dialing),
             Err(e) => println!("Dial {:?} failed: {:?}", dialing, e),

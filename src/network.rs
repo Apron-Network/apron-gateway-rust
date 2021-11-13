@@ -1,39 +1,44 @@
+use std::error::Error;
+use std::iter;
+use std::str::FromStr;
+
+use async_std::channel;
 use async_std::io;
+use async_trait::async_trait;
 use futures::prelude::*;
+use futures::StreamExt;
+use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
 use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
-use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
-use std::error::Error;
-
-use crate::service::{ApronService, SharedHandler};
-use crate::state::new_state;
-use crate::state::{all, get, set, AppState};
-use async_std::channel;
-use futures::StreamExt;
-
-use async_trait::async_trait;
-use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
+use libp2p::kad::record::store::MemoryStore;
+use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryId, QueryResult};
 use libp2p::request_response::{
     ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     RequestResponseMessage, ResponseChannel,
 };
 use libp2p::swarm::{ProtocolsHandlerUpgrErr, SwarmBuilder};
 use libp2p::NetworkBehaviour;
-use std::iter;
+use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
+
+use crate::service::{ApronService, SharedHandler};
+use crate::state::new_state;
+use crate::state::{all, get, set, AppState};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
 pub struct ComposedBehaviour {
     pub request_response: RequestResponse<DataExchangeCodec>,
     pub gossipsub: gossipsub::Gossipsub,
+    pub kademlia: Kademlia<MemoryStore>,
 }
 
 #[derive(Debug)]
 pub enum ComposedEvent {
     RequestResponse(RequestResponseEvent<FileRequest, FileResponse>),
     Gossipsub(GossipsubEvent),
+    Kademlia(KademliaEvent),
 }
 
 impl From<RequestResponseEvent<FileRequest, FileResponse>> for ComposedEvent {
@@ -45,6 +50,12 @@ impl From<RequestResponseEvent<FileRequest, FileResponse>> for ComposedEvent {
 impl From<GossipsubEvent> for ComposedEvent {
     fn from(event: GossipsubEvent) -> Self {
         ComposedEvent::Gossipsub(event)
+    }
+}
+
+impl From<KademliaEvent> for ComposedEvent {
+    fn from(event: KademliaEvent) -> Self {
+        ComposedEvent::Kademlia(event)
     }
 }
 
@@ -63,7 +74,7 @@ pub enum Command {
     },
 }
 
-pub async fn new(// secret_key_seed: Option<u8>,
+pub async fn new(// remote_peer_addr: Option<Multiaddr>,
 ) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
     // let id_keys = match secret_key_seed {
@@ -81,7 +92,6 @@ pub async fn new(// secret_key_seed: Option<u8>,
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
-
     println!("Local peer id: {:?}", local_peer_id);
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
@@ -109,6 +119,14 @@ pub async fn new(// secret_key_seed: Option<u8>,
             iter::once((DataExchangeProtocol(), ProtocolSupport::Full)),
             Default::default(),
         );
+        let kademlia = Kademlia::new(local_peer_id, MemoryStore::new(local_peer_id));
+
+        // match remote_peer_addr {
+        //     Some(remote_peer_addr) => {
+        //         kademlia.add_address(&local_peer_id, remote_peer_addr);
+        //     }
+        //     None => {}
+        // }
 
         // build the swarm
         libp2p::Swarm::new(
@@ -116,6 +134,7 @@ pub async fn new(// secret_key_seed: Option<u8>,
             ComposedBehaviour {
                 request_response,
                 gossipsub,
+                kademlia,
             },
             local_peer_id,
         )
@@ -207,9 +226,17 @@ pub async fn network_event_loop(
                             request_id, error, ..
                         },
                     )) =>{}
+
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::ResponseSent { .. },
                     )) => {}
+
+
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::RoutingUpdated {
+                        peer, is_new_peer, addresses, bucket_range, old_peer
+                    })) => {
+                        println!("Addresses: {:?}", addresses);
+                    }
 
                     _ => {}
                 }
@@ -241,14 +268,17 @@ pub async fn network_event_loop(
 
 #[derive(Debug, Clone)]
 pub struct DataExchangeProtocol();
+
 #[derive(Clone)]
 pub struct DataExchangeCodec();
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 // struct FileRequest {
 //     schema: String,
 //     data: String,
 // }
 pub struct FileRequest(Vec<u8>);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileResponse(Vec<u8>);
 
