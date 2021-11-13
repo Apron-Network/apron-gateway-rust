@@ -6,7 +6,7 @@ use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
 use futures::prelude::*;
-use futures::StreamExt;
+use futures::{AsyncWriteExt, StreamExt};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
 use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
@@ -188,6 +188,7 @@ pub async fn network_event_loop(
                         let key = new_service.id.clone();
                         set(share_data, key, new_service);
                     },
+
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::Message { peer, message },
                     )) => match message {
@@ -221,6 +222,7 @@ pub async fn network_event_loop(
                             );
                         }
                     }
+
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::OutboundFailure {
                             request_id, error, ..
@@ -231,11 +233,36 @@ pub async fn network_event_loop(
                         RequestResponseEvent::ResponseSent { .. },
                     )) => {}
 
-
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::RoutingUpdated {
                         peer, is_new_peer, addresses, bucket_range, old_peer
                     })) => {
                         println!("Addresses: {:?}", addresses);
+                    }
+
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::OutboundQueryCompleted {
+                        id,
+                        result: QueryResult::StartProviding(_),
+                        ..
+                    })) => {
+                        // let sender: oneshot::Sender<()> = self
+                        //     .pending_start_providing
+                        //     .remove(&id)
+                        //     .expect("Completed query to be previously pending.");
+                        // let _ = sender.send(());
+                    }
+
+                    SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+                        KademliaEvent::OutboundQueryCompleted {
+                            id,
+                            result: QueryResult::GetProviders(Ok(GetProvidersOk { providers, .. })),
+                            ..
+                        }
+                    )) => {
+                        // let _ = self
+                        //     .pending_get_providers
+                        //     .remove(&id)
+                        //     .expect("Completed query to be previously pending.")
+                        //     .send(providers);
                     }
 
                     _ => {}

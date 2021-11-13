@@ -1,4 +1,8 @@
-use actix_web::{body::Body, web::{HttpResponse, Json}, Error};
+use actix_web::{
+    body::Body,
+    web::{HttpResponse, Json},
+    Error,
+};
 use serde::Serialize;
 
 /// Helper function to reduce boilerplate of an OK/Json response
@@ -13,4 +17,3 @@ where
 pub fn respond_ok() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().body(Body::Empty))
 }
-

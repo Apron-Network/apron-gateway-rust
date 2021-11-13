@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
-use actix_web::{HttpRequest, web};
+use actix_web::{web, HttpRequest};
 use log::{info, warn};
 
 use crate::forward_service_models::ProxyRequestInfo;
 
-pub(crate) fn parse_request(query_args: web::Query<HashMap<String, String>>, raw_body: web::Bytes, req: &HttpRequest) -> ProxyRequestInfo {
+pub(crate) fn parse_request(
+    query_args: web::Query<HashMap<String, String>>,
+    raw_body: web::Bytes,
+    req: &HttpRequest,
+) -> ProxyRequestInfo {
     let mut req_info = ProxyRequestInfo {
         ver: req.match_info().query("ver").parse().unwrap(),
         user_key: req.match_info().query("user_key").parse().unwrap(),
@@ -22,13 +26,15 @@ pub(crate) fn parse_request(query_args: web::Query<HashMap<String, String>>, raw
 
     // Update header
     for header in req.headers().into_iter() {
-        req_info.headers.insert(header.0.to_string(), header.1.to_str().unwrap().to_string());
+        req_info
+            .headers
+            .insert(header.0.to_string(), header.1.to_str().unwrap().to_string());
     }
 
     // Parse json / form data
     let content_type = match req.headers().get("content-type") {
         Some(content_type) => content_type.to_str().unwrap(),
-        None => ""
+        None => "",
     };
 
     match serde_json::from_slice(&raw_body) {

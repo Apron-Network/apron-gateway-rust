@@ -1,12 +1,12 @@
-use actix::*;
 use actix::io::SinkWrite;
+use actix::*;
 use actix_codec::Framed;
 use actix_web_actors::ws;
-use awc::BoxedSocket;
-use awc::Client;
 use awc::error::WsProtocolError;
 use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
+use awc::BoxedSocket;
+use awc::Client;
 use futures::stream::SplitSink;
 use futures::StreamExt;
 use log::{debug, error, info};
@@ -49,9 +49,7 @@ impl Handler<TestWsMsg> for ServiceSideWsActor {
     }
 }
 
-
 impl actix::io::WriteHandler<WsProtocolError> for ServiceSideWsActor {}
-
 
 // Service side actor
 
@@ -70,7 +68,8 @@ impl Actor for ClientSideWsActor {
             .into_actor(self)
             .map(|addr_to_service, forward_ws, ctx| {
                 forward_ws.addr = Some(addr_to_service);
-            }).spawn(ctx);
+            })
+            .spawn(ctx);
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -80,11 +79,7 @@ impl Actor for ClientSideWsActor {
 
 // Handler for message sent from client side
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor {
-    fn handle(
-        &mut self,
-        msg: Result<ws::Message, ws::ProtocolError>,
-        ctx: &mut Self::Context,
-    ) {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         debug!("ClientSideGateway: receive ws msg from client: {:?}", msg);
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
@@ -101,7 +96,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
                 debug!("Msg: {:?}", text);
                 // TODO: Forward message to service ws client
                 match &self.addr {
-                    None => { error!("Addr not set"); }
+                    None => {
+                        error!("Addr not set");
+                    }
                     Some(addr) => {
                         addr.do_send(TestWsMsg(text));
                     }
@@ -122,7 +119,10 @@ impl Handler<ProxyData> for ClientSideWsActor {
     }
 }
 
-async fn connect_to_service(service_uri: &str, addr: Addr<ClientSideWsActor>) -> Addr<ServiceSideWsActor> {
+async fn connect_to_service(
+    service_uri: &str,
+    addr: Addr<ClientSideWsActor>,
+) -> Addr<ServiceSideWsActor> {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
         .connect()
