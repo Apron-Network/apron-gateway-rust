@@ -12,8 +12,25 @@ use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
+// <<<<<<< Updated upstream
+use crate::helpers;
+use libp2p::identity::ed25519;
 use libp2p::kad::record::store::MemoryStore;
 use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryId, QueryResult};
+// =======
+// use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
+// use std::error::Error;
+
+// use crate::service::{ApronService, SharedHandler};
+// use crate::state::new_state;
+// use crate::state::{all, get, set, AppState};
+// use async_std::channel;
+// use futures::StreamExt;
+
+// use async_trait::async_trait;
+// use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
+// use libp2p::multiaddr::Protocol;
+// >>>>>>> Stashed changes
 use libp2p::request_response::{
     ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     RequestResponseMessage, ResponseChannel,
@@ -72,26 +89,30 @@ pub enum Command {
         data: Vec<u8>,
         channel: ResponseChannel<FileResponse>,
     },
+
+    Dial {
+        peer: PeerId,
+        peer_addr: Multiaddr,
+    },
 }
 
-pub async fn new(// remote_peer_addr: Option<Multiaddr>,
-) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
+pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
-    // let id_keys = match secret_key_seed {
-    //     Some(seed) => {
-    //         let mut bytes = [0u8; 32];
-    //         bytes[0] = seed;
-    //         let secret_key = ed25519::SecretKey::from_bytes(&mut bytes).expect(
-    //             "this returns `Err` only if the length is wrong; the length is correct; qed",
-    //         );
-    //         identity::Keypair::Ed25519(secret_key.into())
-    //     }
-    //     None => identity::Keypair::generate_ed25519(),
-    // };
-    // let peer_id = id_keys.public().to_peer_id();
+    let local_key = match secret_key_seed {
+        Some(seed) => {
+            let mut bytes = [0u8; 32];
+            bytes[0] = seed;
+            let secret_key = ed25519::SecretKey::from_bytes(&mut bytes).expect(
+                "this returns `Err` only if the length is wrong; the length is correct; qed",
+            );
+            identity::Keypair::Ed25519(secret_key.into())
+        }
+        None => identity::Keypair::generate_ed25519(),
+    };
+    let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
 
-    let local_key = identity::Keypair::generate_ed25519();
-    let local_peer_id = PeerId::from(local_key.public());
+    // let local_key = identity::Keypair::generate_ed25519();
+    // let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
@@ -167,9 +188,12 @@ pub async fn network_event_loop(
                     },
                     SwarmEvent::ConnectionEstablished { peer_id, endpoint,.. } => {
                         println!("Connected to {} on {}", peer_id, endpoint.get_remote_address());
+                        let remote_address = endpoint.get_remote_address();
+                        swarm.behaviour_mut().kademlia.add_address(&peer_id, remote_address.clone());
                     },
                     SwarmEvent::ConnectionClosed { peer_id,.. } => {
                         println!("Disconnected from {}", peer_id);
+                        swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
                     },
                     SwarmEvent::Behaviour(ComposedEvent::Gossipsub(
                      GossipsubEvent::Message {
@@ -237,6 +261,7 @@ pub async fn network_event_loop(
                         peer, is_new_peer, addresses, bucket_range, old_peer
                     })) => {
                         println!("Addresses: {:?}", addresses);
+                        // swarm.behaviour_mut().kademlia.add_address(peer_id, addresses..clone());
                     }
 
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::OutboundQueryCompleted {
@@ -275,6 +300,10 @@ pub async fn network_event_loop(
                         Command::PublishGossip { data } => {
                             println!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
+                        },
+                        Command::Dial { peer, peer_addr} => {
+                            println!("[libp2p] Dial to peer: {}, peer_addr: {:?}", peer.to_string(), peer_addr);
+                        //    swarm.dial_addr(peer_addr.with(Protocol::P2p(peer.into())));
                         },
                         Command::SendRequest { peer, data } => {
                             println!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));

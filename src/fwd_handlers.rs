@@ -10,6 +10,7 @@ use libp2p::core::network::Peer;
 use log::debug;
 use url::Url;
 
+use crate::helpers;
 use crate::network::Command;
 use crate::{
     forward_service_actors, forward_service_models, forward_service_utils, PeerId, SharedHandler,
@@ -91,11 +92,12 @@ pub(crate) async fn forward_http_proxy_request(
     // TODO: missing fn: send_via_stream
     let command_sender = p2p_handler.handler.lock().unwrap();
     let message = "foobar".to_string();
-    println!("[fwd] http request: {}", &message);
+    let (remote_key, remote_peer_id) = helpers::generate_peer_id_from_seed(Some(1));
+    println!("[fwd] http request: {} to {}", &message, remote_peer_id);
     command_sender
         .send(Command::SendRequest {
             // peer: PeerId::from_str(local_peer_id.as_str()).unwrap(),
-            peer: *local_peer_id.get_ref(),
+            peer: remote_peer_id,
             data: message.into_bytes(),
         })
         .await

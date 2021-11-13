@@ -54,13 +54,17 @@ struct Opt {
 
     #[structopt(default_value = "apron-test-net", long)]
     rendezvous: String,
+
+    /// Fixed value to generate deterministic peer ID.
+    #[structopt(long)]
+    secret_key_seed: Option<u8>,
 }
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
 
-    let mut swarm = network::new().await.unwrap();
+    let mut swarm = network::new(opt.secret_key_seed).await.unwrap();
 
     // In case the user provided an address of a peer on the CLI, dial it.
     if let Some(to_dial) = opt.peer {
