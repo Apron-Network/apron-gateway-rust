@@ -14,12 +14,17 @@ cargo build
 The bootstrap node can be started with this command.
 
 ```bash
-./target/debug/apron-gateway
+./target/debug/apron-gateway --secret-key-seed 1
 ```
+**OR**
+```bash
+cargo run -- --secret-key-seed 1
+```
+
 ### Client Node
 
 ```bash
-./target/debug/apron-gateway --peer /ip4/127.0.0.1/tcp/2145 --p2p-port 2146 --mgmt-port 8083
+./target/debug/apron-gateway --secret-key-seed 2 --peer /ip4/127.0.0.1/tcp/2145/p2p/<peer id from bootsrap> --p2p-port 2149 --mgmt-port 8084 --forward-port 8086
 ```
 
 ### register a new service on Bootstrap Node
@@ -57,5 +62,11 @@ The new service will be forward to the whole p2p network. So you can query it fr
 ### Query new service from Client Node
 
 ```bash
-curl --location --request GET 'http://127.0.0.1:8083/service'
+curl --location --request GET 'http://127.0.0.1:8086/service'
+```
+
+### Test forward service
+#### One direction Requst -> Client -> Bootstrap
+```bash
+curl http://127.0.0.1:8086/v1/anything
 ```
