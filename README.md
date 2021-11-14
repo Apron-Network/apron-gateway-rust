@@ -33,6 +33,7 @@ cargo run -- --secret-key-seed 1
 curl --location --request POST 'http://127.0.0.1:8082/service' \
 --header 'Content-Type: application/json' \
 --data-raw '{
+    "peer_id": "",
     "id" : "test",
     "domain_name": "localhost",
      "is_deleted" : false,
@@ -63,6 +64,13 @@ The new service will be forward to the whole p2p network. So you can query it fr
 
 ```bash
 curl --location --request GET 'http://127.0.0.1:8086/service'
+```
+
+### Query other service from Client Node
+```bash
+curl --location --request GET 'http://127.0.0.1:8086/local'
+curl --location --request GET 'http://127.0.0.1:8086/remote'
+curl --location --request GET 'http://127.0.0.1:8086/peers'
 ```
 
 ### Test forward service

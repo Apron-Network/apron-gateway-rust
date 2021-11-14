@@ -97,6 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (command_sender, command_receiver) = channel::unbounded();
 
     let data = new_state::<ApronService>();
+    // let service_peer_mapping = new_state::<PeerId>();
 
     // Spawn away the event loop that will keep the swarm going.
     async_std::task::spawn(network::network_event_loop(
@@ -116,10 +117,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     .start();
 
+    let mgmt_local_peer_id = web::Data::new(peer_id.clone());
     let mgmt_service = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
+            .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?

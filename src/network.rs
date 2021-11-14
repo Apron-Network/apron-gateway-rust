@@ -98,22 +98,23 @@ pub enum Command {
 
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
-    let local_key = match secret_key_seed {
-        Some(seed) => {
-            let mut bytes = [0u8; 32];
-            bytes[0] = seed;
-            let secret_key = ed25519::SecretKey::from_bytes(&mut bytes).expect(
-                "this returns `Err` only if the length is wrong; the length is correct; qed",
-            );
-            identity::Keypair::Ed25519(secret_key.into())
-        }
-        None => identity::Keypair::generate_ed25519(),
-    };
     let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
 
     // let local_key = identity::Keypair::generate_ed25519();
     // let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
+
+    // println!(
+    //     "[libp2p] local peer id to bytes {:?}",
+    //     local_peer_id.to_bytes()
+    // );
+    // println!(
+    //     "[libp2p] local peer id base 58 encode {}",
+    //     local_peer_id.to_base58()
+    // );
+    // let encoded = local_peer_id.to_string();
+    // let decoded = PeerId::from_str(&encoded);
+    // println!("[libp2p] local peer id base 58 decode {}", decoded.unwrap());
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
     let transport = libp2p::development_transport(local_key.clone()).await;
@@ -180,6 +181,7 @@ pub async fn network_event_loop(
 
     loop {
         let share_data = data.clone();
+        // let share_service_peer_mapping = service_peer_mapping.clone();
         futures::select! {
             event = swarm.select_next_some() => {
                 match event {
@@ -201,16 +203,12 @@ pub async fn network_event_loop(
                         message_id: id,
                         message,
                     })) => {
-                        println!(
-                            "[libp2p] receive new message {} from remote peer: {:?}",
-                            String::from_utf8_lossy(&message.data),
-                            peer_id
-                        );
                         // update local http gateway data.
                         let value = String::from_utf8_lossy(&message.data).to_string();
                         let new_service: ApronService = serde_json::from_str(&value).unwrap();
                         let key = new_service.id.clone();
-                        set(share_data, key, new_service);
+                        set(share_data, key.clone(), new_service);
+                        // set(share_service_peer_mapping, key, peer_id);
                     },
 
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
@@ -224,12 +222,11 @@ pub async fn network_event_loop(
                             // get data from request. Currently only for http.
                             // the data is String
                             println!("Data is {:?}", String::from_utf8_lossy(&request.0));
-
                             // @Todo forward message to Service Gateway
 
-                            // The response is sent using another request
+                            // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
-                            swarm.behaviour_mut()
+                     swarm.behaviour_mut()
                             .request_response
                             .send_response(channel, FileResponse(String::from("ok").into_bytes()));
                         }
