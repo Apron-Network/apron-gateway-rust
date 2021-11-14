@@ -1,3 +1,4 @@
+use bincode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -5,7 +6,7 @@ use std::collections::HashMap;
 #[rtype(result = "()")]
 pub struct TestWsMsg(pub String);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct ProxyRequestInfo {
     pub(crate) ver: u16,
     pub(crate) user_key: String,

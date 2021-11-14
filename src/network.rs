@@ -2,6 +2,7 @@ use std::error::Error;
 use std::iter;
 use std::str::FromStr;
 
+use crate::helpers;
 use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
@@ -12,25 +13,9 @@ use libp2p::gossipsub::MessageId;
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
-// <<<<<<< Updated upstream
-use crate::helpers;
 use libp2p::identity::ed25519;
 use libp2p::kad::record::store::MemoryStore;
 use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryId, QueryResult};
-// =======
-// use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
-// use std::error::Error;
-
-// use crate::service::{ApronService, SharedHandler};
-// use crate::state::new_state;
-// use crate::state::{all, get, set, AppState};
-// use async_std::channel;
-// use futures::StreamExt;
-
-// use async_trait::async_trait;
-// use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
-// use libp2p::multiaddr::Protocol;
-// >>>>>>> Stashed changes
 use libp2p::request_response::{
     ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     RequestResponseMessage, ResponseChannel,
@@ -42,6 +27,7 @@ use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
 use crate::state::{all, get, set, AppState};
+use crate::{forward_service_actors, forward_service_models, forward_service_utils};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -220,8 +206,8 @@ pub async fn network_event_loop(
                             println!("[libp2p] receive request message: {:?}, channel: {:?}", request, channel);
                             println!("Request from Peer id {:?}", peer);
                             // get data from request. Currently only for http.
-                            // the data is String
-                            println!("Data is {:?}", String::from_utf8_lossy(&request.0));
+                            let proxy_request_info: forward_service_models::ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
+                            println!("ProxyRequsetInfo is {:?}", proxy_request_info);
                             // @Todo forward message to Service Gateway
 
                             // The response is sent using another request // Send Ack to remote
@@ -257,7 +243,7 @@ pub async fn network_event_loop(
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::RoutingUpdated {
                         peer, is_new_peer, addresses, bucket_range, old_peer
                     })) => {
-                        println!("Addresses: {:?}", addresses);
+                        println!("Peer: {:?}, Addresses: {:?}", peer, addresses);
                         // swarm.behaviour_mut().kademlia.add_address(peer_id, addresses..clone());
                     }
 

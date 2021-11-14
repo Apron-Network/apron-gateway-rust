@@ -89,16 +89,19 @@ pub(crate) async fn forward_http_proxy_request(
     let req_info = forward_service_utils::parse_request(query_args, raw_body, &req);
 
     // For p2p environment, the req_info should be sent to service side gateway via stream
-    // TODO: missing fn: send_via_stream
     let command_sender = p2p_handler.handler.lock().unwrap();
-    let message = "foobar".to_string();
+
+    // TODO: Hard coded, should be replaced with registered service data
     let (remote_key, remote_peer_id) = helpers::generate_peer_id_from_seed(Some(1));
-    println!("[fwd] http request: {} to {}", &message, remote_peer_id);
+
+    println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);
+
+    // Send ProxyRequestInfo to service side gateway via stream
     command_sender
         .send(Command::SendRequest {
             // peer: PeerId::from_str(local_peer_id.as_str()).unwrap(),
             peer: remote_peer_id,
-            data: message.into_bytes(),
+            data: bincode::serialize(&req_info).unwrap(),
         })
         .await
         .unwrap();
