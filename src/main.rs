@@ -1,29 +1,15 @@
+use std::error::Error;
 use std::sync::Mutex;
-use std::thread;
-use std::{
-    error::Error,
-    task::{Context, Poll},
-};
 
-use actix_web::{get, post, web, web::Data, App, HttpResponse, HttpServer, Responder};
-use async_std::{io, task};
-// use futures::channel::{mpsc, oneshot};
+use actix_web::{web, web::Data, App, HttpServer};
 use async_std::channel;
 use futures::prelude::*;
-use libp2p::gossipsub::MessageId;
-use libp2p::gossipsub::{
-    GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
-};
-use libp2p::{
-    gossipsub, identity, multiaddr::Protocol, swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
-};
+use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use structopt::StructOpt;
-use uuid::Uuid;
 
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
-use crate::state::{all, get, set, AppState};
 
 mod forward_service;
 mod forward_service_actors;

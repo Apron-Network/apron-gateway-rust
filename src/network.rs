@@ -2,32 +2,34 @@ use std::error::Error;
 use std::iter;
 use std::str::FromStr;
 
-use crate::helpers;
 use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
-use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
-use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
-use libp2p::gossipsub::MessageId;
+use futures::prelude::*;
+use libp2p::{gossipsub, identity, Multiaddr, PeerId, Swarm, swarm::SwarmEvent};
+use libp2p::core::upgrade::{ProtocolName, read_length_prefixed, write_length_prefixed};
 use libp2p::gossipsub::{
     GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
 };
+use libp2p::gossipsub::MessageId;
 use libp2p::identity::ed25519;
-use libp2p::kad::record::store::MemoryStore;
 use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryId, QueryResult};
+use libp2p::kad::record::store::MemoryStore;
+use libp2p::NetworkBehaviour;
 use libp2p::request_response::{
     ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     RequestResponseMessage, ResponseChannel,
 };
 use libp2p::swarm::{ProtocolsHandlerUpgrErr, SwarmBuilder};
-use libp2p::NetworkBehaviour;
-use libp2p::{gossipsub, identity, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 
+use crate::{
+    forward_service_actors, forward_service_models, forward_service_utils::send_http_request,
+};
+use crate::helpers;
 use crate::service::{ApronService, SharedHandler};
+use crate::state::{all, AppState, get, set};
 use crate::state::new_state;
-use crate::state::{all, get, set, AppState};
-use crate::{forward_service_actors, forward_service_models, forward_service_utils};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -173,16 +175,16 @@ pub async fn network_event_loop(
                 match event {
                     SwarmEvent::NewListenAddr { address, .. } => {
                         println!("Listening on {}", address);
-                    },
+                    }
                     SwarmEvent::ConnectionEstablished { peer_id, endpoint,.. } => {
                         println!("Connected to {} on {}", peer_id, endpoint.get_remote_address());
                         let remote_address = endpoint.get_remote_address();
                         swarm.behaviour_mut().kademlia.add_address(&peer_id, remote_address.clone());
-                    },
+                    }
                     SwarmEvent::ConnectionClosed { peer_id,.. } => {
                         println!("Disconnected from {}", peer_id);
                         swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
-                    },
+                    }
                     SwarmEvent::Behaviour(ComposedEvent::Gossipsub(
                      GossipsubEvent::Message {
                         propagation_source: peer_id,
@@ -195,31 +197,33 @@ pub async fn network_event_loop(
                         let key = new_service.id.clone();
                         set(share_data, key.clone(), new_service);
                         // set(share_service_peer_mapping, key, peer_id);
-                    },
+                    }
 
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                         RequestResponseEvent::Message { peer, message },
                     )) => match message {
-                        RequestResponseMessage::Request {
-                             request, channel, ..
-                        } => {
+                        RequestResponseMessage::Request { request, channel, .. } => {
                             println!("[libp2p] receive request message: {:?}, channel: {:?}", request, channel);
                             println!("Request from Peer id {:?}", peer);
+
                             // get data from request. Currently only for http.
                             let proxy_request_info: forward_service_models::ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
-                            println!("ProxyRequsetInfo is {:?}", proxy_request_info);
-                            // @Todo forward message to Service Gateway
+                            println!("ProxyRequestInfo is {:?}", proxy_request_info);
+
+                            // TODO: Locate service url from service list, and build request then send to service.
+                            let tmp_base = "https://httpbin.org/anything";
+                            let mut resp = send_http_request(proxy_request_info, Some(tmp_base)).await.unwrap();
+                            let resp_data = resp.take_body().as_ref().unwrap();
+                            println!("Response data is {:?}", resp_data);
 
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
-                     swarm.behaviour_mut()
-                            .request_response
-                            .send_response(channel, FileResponse(String::from("ok").into_bytes()));
+                            swarm.behaviour_mut()
+                                    .request_response
+                                    .send_response(channel, FileResponse(String::from("ok").into_bytes()));
                         }
-                        RequestResponseMessage::Response {
-                            request_id,
-                            response,
-                        } => {
+
+                        RequestResponseMessage::Response { request_id, response, } => {
                             println!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
                             println!(
                                 "recevie request {:?} Ack from {:?}: {:?}",
@@ -277,24 +281,24 @@ pub async fn network_event_loop(
                 }
             },
             command = receiver.next() =>  {
-                // recevie command outside of event loop.
+                // receive command outside of event loop.
                 match command {
                     Some(c) => match c {
                         Command::PublishGossip { data } => {
                             println!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
-                        },
+                        }
                         Command::Dial { peer, peer_addr} => {
                             println!("[libp2p] Dial to peer: {}, peer_addr: {:?}", peer.to_string(), peer_addr);
                         //    swarm.dial_addr(peer_addr.with(Protocol::P2p(peer.into())));
-                        },
+                        }
                         Command::SendRequest { peer, data } => {
                             println!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
-                        },
+                        }
                         Command::SendResponse { data, channel} => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
-                        },
+                        }
                     }
                     None => {}
                 }
@@ -343,8 +347,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         _: &DataExchangeProtocol,
         io: &mut T,
     ) -> io::Result<Self::Request>
-    where
-        T: AsyncRead + Unpin + Send,
+        where
+            T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000).await?;
 
@@ -361,8 +365,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         _: &DataExchangeProtocol,
         io: &mut T,
     ) -> io::Result<Self::Response>
-    where
-        T: AsyncRead + Unpin + Send,
+        where
+            T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000).await?;
 
@@ -380,8 +384,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         io: &mut T,
         FileRequest(data): FileRequest,
     ) -> io::Result<()>
-    where
-        T: AsyncWrite + Unpin + Send,
+        where
+            T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, data).await?;
         io.close().await?;
@@ -395,8 +399,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         io: &mut T,
         FileResponse(data): FileResponse,
     ) -> io::Result<()>
-    where
-        T: AsyncWrite + Unpin + Send,
+        where
+            T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, data).await?;
         io.close().await?;

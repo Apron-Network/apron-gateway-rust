@@ -1,17 +1,9 @@
-use std::collections::HashMap;
-use std::io::{Error, Result};
+use std::io::Result;
 
-use actix_web::http::StatusCode;
 use actix_web::{middleware, web, App, HttpServer};
-use actix_web::{HttpRequest, HttpResponse, Responder};
-use actix_web_actors::ws;
-use libp2p::core::network::Peer;
-use log::debug;
-use url::Url;
 
-use crate::forward_service_models::ProxyRequestInfo;
 use crate::fwd_handlers::{forward_http_proxy_request, forward_ws_proxy_request};
-use crate::service::{ApronService, SharedHandler};
+use crate::service::SharedHandler;
 use crate::PeerId;
 
 #[derive(Clone)]

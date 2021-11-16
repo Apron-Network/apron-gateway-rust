@@ -1,9 +1,19 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::error::Error;
 
-use actix_web::{web, HttpRequest};
+use actix::ContextFutureSpawner;
+use actix_web::{HttpRequest, HttpResponse, web};
+use actix_web::client::PayloadError;
+use actix_web::web::{Buf, Bytes};
+use awc::{ClientRequest, MessageBody, SendClientRequest};
+use awc::error::SendRequestError;
+use awc::http::StatusCode;
 use log::{info, warn};
+use url::Url;
 
-use crate::forward_service_models::ProxyRequestInfo;
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
+use crate::future::{FutureExt, TryFutureExt};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -52,3 +62,45 @@ pub(crate) fn parse_request(
 
     return req_info;
 }
+
+pub(crate) async fn send_http_request(
+    req_info: ProxyRequestInfo,
+    base_url: Option<&str>,
+) -> Result<HttpResponse, Box<dyn Error>> {
+    let client = actix_web::client::Client::new();
+
+    let real_base = match base_url {
+        Some(base) => base,
+        None => return Err("No API base passed.".into()),
+    };
+
+    let mut service_url = Url::parse(real_base).unwrap();
+    println!("Base url: {}", real_base);
+
+    // Fill query args
+    for (key, val) in req_info.query_args.iter() {
+        service_url.query_pairs_mut().append_pair(key, val);
+    }
+
+    let mut client_req = match req_info.http_method.as_str() {
+        "GET" => client.get(service_url.as_str()),
+        "POST" => client.post(service_url.as_str()),
+        "PUT" => client.put(service_url.as_str()),
+        "DELETE" => client.delete(service_url.as_str()),
+        _ => panic!("Unknown http method: {}", req_info.http_method),
+    };
+
+    // Fill headers
+    for (key, val) in req_info.headers.iter() {
+        client_req = client_req.header(key, val.to_owned());
+    }
+
+    let resp = client_req.send().await.map_err(|e| {
+        warn!("Send request error: {:?}", e);
+        e
+    })?;
+    let mut client_resp = HttpResponse::build(resp.status());
+    Ok(client_resp.streaming(resp))
+}
+
+
