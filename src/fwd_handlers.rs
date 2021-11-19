@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 
 use actix_web::web::Data;
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actix_web_actors::ws;
 use log::debug;
 
@@ -49,16 +48,16 @@ pub(crate) async fn forward_http_proxy_request(
     // let mut foo = async move {send_http_request(req_info, None).await.unwrap()};
     // let bar = foo.await.take_body();
 
-    let client_req = send_http_request(req_info, None);
-    client_req.unwrap().send()
+    // let client_req = send_http_request(req_info, None);
+    // let resp_body = client_req.unwrap().send().await.unwrap().body().await.unwrap().to_vec();
 
-    send_http_request(req_info, None).await.unwrap()
+    // send_http_request(req_info, None).await.unwrap()
 
 
     // TODO: missing fn: pass response back to client side gateway
     // TODO: missing fn: pass response sent from service side gateway, and respond to client
 
-    // HttpResponse::Ok().body(resp_body.body().try_into().unwrap())
+    HttpResponse::Ok()
 }
 
 pub(crate) async fn forward_ws_proxy_request(

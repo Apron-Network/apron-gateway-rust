@@ -1,24 +1,17 @@
-use crate::helpers::{respond_json, respond_ok};
+use crate::helpers::respond_json;
 use crate::network::Command;
-use crate::state::{all, get, set, AppState};
-use actix_web::web::{Data, HttpResponse, Json, Path};
+use crate::state::{all, set, AppState};
+use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
 use serde::Serialize;
 use std::sync::Mutex;
-use uuid::Uuid;
 // use futures::channel::{mpsc, oneshot};
 // use futures::SinkExt;
 use async_std::channel;
 
-use libp2p::gossipsub::{
-    Gossipsub, GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity,
-    ValidationMode,
-};
-
-use libp2p::{gossipsub, identity, swarm::SwarmEvent, PeerId, Swarm};
+use libp2p::PeerId;
 // use serde_derive::Deserialize;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]

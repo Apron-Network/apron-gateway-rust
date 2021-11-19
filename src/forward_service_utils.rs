@@ -1,19 +1,12 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::error::Error;
 
-use actix::ContextFutureSpawner;
-use actix_web::{HttpRequest, HttpResponse, web};
-use actix_web::client::PayloadError;
-use actix_web::web::{Buf, Bytes};
-use awc::{ClientRequest, MessageBody, SendClientRequest};
-use awc::error::SendRequestError;
-use awc::http::StatusCode;
+use actix_web::{web, HttpRequest};
+use awc::ClientRequest;
 use log::{info, warn};
 use url::Url;
 
-use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
-use crate::future::{FutureExt, TryFutureExt};
+use crate::forward_service_models::ProxyRequestInfo;
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -104,5 +97,3 @@ pub(crate) fn send_http_request(
     // let mut client_resp = HttpResponse::build(resp.status());
     // Ok(client_resp.streaming(resp))
 }
-
-

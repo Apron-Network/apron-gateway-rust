@@ -1,35 +1,27 @@
 use std::error::Error;
 use std::iter;
-use std::str::FromStr;
 
 use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
-use futures::{AsyncWriteExt, StreamExt};
 use futures::prelude::*;
-use libp2p::{gossipsub, identity, Multiaddr, PeerId, Swarm, swarm::SwarmEvent};
-use libp2p::core::upgrade::{ProtocolName, read_length_prefixed, write_length_prefixed};
-use libp2p::gossipsub::{
-    GossipsubEvent, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity, ValidationMode,
-};
-use libp2p::gossipsub::MessageId;
-use libp2p::identity::ed25519;
-use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryId, QueryResult};
+use futures::{AsyncWriteExt, StreamExt};
+use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
+use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity};
 use libp2p::kad::record::store::MemoryStore;
-use libp2p::NetworkBehaviour;
+use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryResult};
 use libp2p::request_response::{
-    ProtocolSupport, RequestId, RequestResponse, RequestResponseCodec, RequestResponseEvent,
+    ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseEvent,
     RequestResponseMessage, ResponseChannel,
 };
-use libp2p::swarm::{ProtocolsHandlerUpgrErr, SwarmBuilder};
+use libp2p::NetworkBehaviour;
+use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 
-use crate::{
-    forward_service_actors, forward_service_models, forward_service_utils::send_http_request,
-};
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
+use crate::forward_service_utils::send_http_request;
 use crate::helpers;
-use crate::service::{ApronService, SharedHandler};
-use crate::state::{all, AppState, get, set};
-use crate::state::new_state;
+use crate::service::ApronService;
+use crate::state::{set, AppState};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -207,13 +199,13 @@ pub async fn network_event_loop(
                             println!("Request from Peer id {:?}", peer);
 
                             // get data from request. Currently only for http.
-                            let proxy_request_info: forward_service_models::ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
+                            let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
                             println!("ProxyRequestInfo is {:?}", proxy_request_info);
 
                             // TODO: Locate service url from service list, and build request then send to service.
-                            let tmp_base = "https://httpbin.org/anything";
+                            let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
                             let mut resp = Box::pin(async move {
-                                send_http_request(proxy_request_info, Some(tmp_base)).await.unwrap();
+                                send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
                             });
                             let resp_data = resp.await;
                             println!("Response data is {:?}", resp_data);
@@ -349,8 +341,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         _: &DataExchangeProtocol,
         io: &mut T,
     ) -> io::Result<Self::Request>
-        where
-            T: AsyncRead + Unpin + Send,
+    where
+        T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000).await?;
 
@@ -367,8 +359,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         _: &DataExchangeProtocol,
         io: &mut T,
     ) -> io::Result<Self::Response>
-        where
-            T: AsyncRead + Unpin + Send,
+    where
+        T: AsyncRead + Unpin + Send,
     {
         let vec = read_length_prefixed(io, 1_000_000).await?;
 
@@ -386,8 +378,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         io: &mut T,
         FileRequest(data): FileRequest,
     ) -> io::Result<()>
-        where
-            T: AsyncWrite + Unpin + Send,
+    where
+        T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, data).await?;
         io.close().await?;
@@ -401,8 +393,8 @@ impl RequestResponseCodec for DataExchangeCodec {
         io: &mut T,
         FileResponse(data): FileResponse,
     ) -> io::Result<()>
-        where
-            T: AsyncWrite + Unpin + Send,
+    where
+        T: AsyncWrite + Unpin + Send,
     {
         write_length_prefixed(io, data).await?;
         io.close().await?;
