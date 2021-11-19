@@ -212,8 +212,10 @@ pub async fn network_event_loop(
 
                             // TODO: Locate service url from service list, and build request then send to service.
                             let tmp_base = "https://httpbin.org/anything";
-                            let mut resp = send_http_request(proxy_request_info, Some(tmp_base)).await.unwrap();
-                            let resp_data = resp.take_body().as_ref().unwrap();
+                            let mut resp = Box::pin(async move {
+                                send_http_request(proxy_request_info, Some(tmp_base)).await.unwrap();
+                            });
+                            let resp_data = resp.await;
                             println!("Response data is {:?}", resp_data);
 
                             // The response is sent using another request // Send Ack to remote

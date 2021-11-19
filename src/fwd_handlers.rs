@@ -46,7 +46,14 @@ pub(crate) async fn forward_http_proxy_request(
         .unwrap();
 
     // Build request sent to forwarded service
+    // let mut foo = async move {send_http_request(req_info, None).await.unwrap()};
+    // let bar = foo.await.take_body();
+
+    let client_req = send_http_request(req_info, None);
+    client_req.unwrap().send()
+
     send_http_request(req_info, None).await.unwrap()
+
 
     // TODO: missing fn: pass response back to client side gateway
     // TODO: missing fn: pass response sent from service side gateway, and respond to client

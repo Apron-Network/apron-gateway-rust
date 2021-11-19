@@ -63,10 +63,10 @@ pub(crate) fn parse_request(
     return req_info;
 }
 
-pub(crate) async fn send_http_request(
+pub(crate) fn send_http_request(
     req_info: ProxyRequestInfo,
     base_url: Option<&str>,
-) -> Result<HttpResponse, Box<dyn Error>> {
+) -> Result<ClientRequest, Box<dyn Error>> {
     let client = actix_web::client::Client::new();
 
     let real_base = match base_url {
@@ -95,12 +95,14 @@ pub(crate) async fn send_http_request(
         client_req = client_req.header(key, val.to_owned());
     }
 
-    let resp = client_req.send().await.map_err(|e| {
-        warn!("Send request error: {:?}", e);
-        e
-    })?;
-    let mut client_resp = HttpResponse::build(resp.status());
-    Ok(client_resp.streaming(resp))
+    Ok(client_req)
+
+    // let resp = client_req.send().await.map_err(|e| {
+    //     warn!("Send request error: {:?}", e);
+    //     e
+    // })?;
+    // let mut client_resp = HttpResponse::build(resp.status());
+    // Ok(client_resp.streaming(resp))
 }
 
 
