@@ -157,7 +157,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
     mut receiver: mpsc::Receiver<Command>,
-    event_sender: mpsc::Sender<Event>,
+    mut event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -209,6 +209,10 @@ pub async fn network_event_loop(
                             // get data from request. Currently only for http.
                             let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
                             println!("ProxyRequestInfo is {:?}", proxy_request_info);
+
+                            event_sender.send( Event::ProxyRequst{
+                                info: proxy_request_info
+                            }).await;
 
                             // TODO: Locate service url from service list, and build request then send to service.
                             // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
