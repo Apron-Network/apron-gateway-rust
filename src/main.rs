@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use actix_web::{web, web::Data, App, HttpServer};
 use async_std::channel;
+use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use structopt::StructOpt;
@@ -80,7 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let peer_id = swarm.local_peer_id().clone();
 
-    let (command_sender, command_receiver) = channel::unbounded();
+    let (command_sender, command_receiver) = mpsc::channel(0);
 
     let data = new_state::<ApronService>();
     // let service_peer_mapping = new_state::<PeerId>();

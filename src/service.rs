@@ -3,11 +3,11 @@ use crate::network::Command;
 use crate::state::{all, set, AppState};
 use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
+use async_std::channel;
+use futures::channel::{mpsc, oneshot};
+use futures::SinkExt;
 use serde::Serialize;
 use std::sync::Mutex;
-// use futures::channel::{mpsc, oneshot};
-// use futures::SinkExt;
-use async_std::channel;
 
 use libp2p::PeerId;
 // use serde_derive::Deserialize;
@@ -41,7 +41,7 @@ pub struct ApronService {
 
 // #[derive(Debug,Serialize, PartialEq, Clone)]
 pub struct SharedHandler {
-    pub handler: Mutex<channel::Sender<Command>>,
+    pub handler: Mutex<mpsc::Sender<Command>>,
 }
 
 /// Create a service with data-raw.
@@ -66,7 +66,7 @@ pub async fn create_service(
     set(data, key, new_service);
 
     // publish data to the whole p2p network
-    let command_sender = p2p_handler.handler.lock().unwrap();
+    let mut command_sender = p2p_handler.handler.lock().unwrap();
     let message = serde_json::to_string(&new_service2).unwrap();
     command_sender
         .send(Command::PublishGossip {

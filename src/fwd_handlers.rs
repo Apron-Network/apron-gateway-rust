@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use actix_web::web::Data;
-use actix_web::{HttpRequest, HttpResponse, Responder, web};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use log::debug;
+
+use futures::SinkExt;
 
 use crate::helpers;
 use crate::network::Command;
@@ -27,7 +29,7 @@ pub(crate) async fn forward_http_proxy_request(
     let req_info = parse_request(query_args, raw_body, &req);
 
     // For p2p environment, the req_info should be sent to service side gateway via stream
-    let command_sender = p2p_handler.handler.lock().unwrap();
+    let mut command_sender = p2p_handler.handler.lock().unwrap();
 
     // TODO: Hard coded, should be replaced with registered service data
     let (remote_key, remote_peer_id) = helpers::generate_peer_id_from_seed(Some(1));
@@ -52,7 +54,6 @@ pub(crate) async fn forward_http_proxy_request(
     // let resp_body = client_req.unwrap().send().await.unwrap().body().await.unwrap().to_vec();
 
     // send_http_request(req_info, None).await.unwrap()
-
 
     // TODO: missing fn: pass response back to client side gateway
     // TODO: missing fn: pass response sent from service side gateway, and respond to client

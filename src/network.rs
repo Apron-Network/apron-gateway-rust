@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::iter;
 
-use async_std::channel;
+// use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
 use futures::prelude::*;
@@ -22,6 +22,7 @@ use crate::forward_service_utils::send_http_request;
 use crate::helpers;
 use crate::service::ApronService;
 use crate::state::{set, AppState};
+use futures::channel::{mpsc, oneshot};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -149,7 +150,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
-    receiver: channel::Receiver<Command>,
+    receiver: mpsc::Receiver<Command>,
     data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -203,12 +204,12 @@ pub async fn network_event_loop(
                             println!("ProxyRequestInfo is {:?}", proxy_request_info);
 
                             // TODO: Locate service url from service list, and build request then send to service.
-                            let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                            let mut resp = Box::pin(async move {
-                                send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
-                            });
-                            let resp_data = resp.await;
-                            println!("Response data is {:?}", resp_data);
+                            // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
+                            // let mut resp = Box::pin(async move {
+                            //     send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
+                            // });
+                            // let resp_data = resp.await;
+                            // println!("Response data is {:?}", resp_data);
 
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
