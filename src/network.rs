@@ -16,6 +16,7 @@ use libp2p::request_response::{
 };
 use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
+use url::Url;
 
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::forward_service_utils::send_http_request;
@@ -81,6 +82,34 @@ pub enum Event {
     ProxyRequst { info: ProxyRequestInfo },
 
     ProxyData { data: ProxyData },
+}
+
+pub async fn block_on_event_loop(mut event_receiver: mpsc::Receiver<Event>) {
+    println!("start block_on_event_loop");
+    let mut event_receiver = event_receiver.fuse();
+    loop {
+        match event_receiver.next().await {
+            Some(Event::ProxyRequst { info }) => {
+                println!("Procy request is {:?}", info);
+                // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
+                // let resp = send_http_request(info, Some(tmp_base)).unwrap();
+                // println!("Response data is {:?}", resp);
+
+                let client = actix_web::client::Client::new();
+                let mut service_url = Url::parse("https://httpbin.org/anything").unwrap();
+                // let service_url = Url::parse(&String::from_utf8_lossy(&request)).unwrap();
+                let client_req = client.get(service_url.as_str());
+                let mut response = client_req.send().await.unwrap();
+
+                let resp_body = response.body().limit(20_000_000).await.unwrap().to_vec();
+                println!("Response body is {:?}", resp_body);
+
+                // send response using another request
+                // println!("Request from Peer id {:?}", peer);
+            }
+            _ => todo!(),
+        }
+    }
 }
 
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
@@ -165,7 +194,7 @@ pub async fn network_event_loop(
     println!("network_event_loop started");
     swarm.behaviour_mut().gossipsub.subscribe(&topic);
 
-    // let mut receiver = receiver.fuse();
+    let mut receiver = receiver.fuse();
 
     loop {
         let share_data = data.clone();
@@ -212,15 +241,12 @@ pub async fn network_event_loop(
 
                             event_sender.send( Event::ProxyRequst{
                                 info: proxy_request_info
-                            }).await;
+                            }).await.expect("Event receiver not to be dropped.");
 
                             // TODO: Locate service url from service list, and build request then send to service.
                             // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                            // let mut resp = Box::pin(async move {
-                            //     send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
-                            // });
-                            // let resp_data = resp.await;
-                            // println!("Response data is {:?}", resp_data);
+                            // let mut resp = send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
+                            // println!("Response data is {:?}", &resp);
 
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote

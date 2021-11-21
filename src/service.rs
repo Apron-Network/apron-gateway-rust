@@ -41,7 +41,7 @@ pub struct ApronService {
 // #[derive(Debug,Serialize, PartialEq, Clone)]
 pub struct SharedHandler {
     pub command_sender: Mutex<mpsc::Sender<Command>>,
-    pub event_reciver: Mutex<mpsc::Receiver<Event>>,
+    // pub event_reciver: Mutex<mpsc::Receiver<Event>>,
 }
 
 /// Create a service with data-raw.

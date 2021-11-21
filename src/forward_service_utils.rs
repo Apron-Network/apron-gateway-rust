@@ -56,7 +56,7 @@ pub(crate) fn parse_request(
     return req_info;
 }
 
-pub(crate) fn send_http_request(
+pub fn send_http_request(
     req_info: ProxyRequestInfo,
     base_url: Option<&str>,
 ) -> Result<ClientRequest, Box<dyn Error>> {

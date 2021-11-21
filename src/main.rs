@@ -3,11 +3,13 @@ use std::sync::Mutex;
 
 use actix_web::{web, web::Data, App, HttpServer};
 use async_std::channel;
+use async_std::task::block_on;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use structopt::StructOpt;
 
+use crate::forward_service_utils::send_http_request;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
@@ -82,7 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let peer_id = swarm.local_peer_id().clone();
 
     let (command_sender, command_receiver) = mpsc::channel(0);
-    let (event_sender, event_receiver) = mpsc::channel(0);
+    let (event_sender, mut event_receiver) = mpsc::channel(0);
 
     let data = new_state::<ApronService>();
     // let service_peer_mapping = new_state::<PeerId>();
@@ -97,18 +99,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let p2p_handler = Data::new(SharedHandler {
         command_sender: Mutex::new(command_sender),
-        event_reciver: Mutex::new(event_receiver),
+        // event_reciver: Mutex::new(event_receiver),
     });
 
-    let fwd_service = forward_service::ForwardService {
+    forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
         peer_id,
     }
-    .start();
+    .start()
+    .await;
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
-    let mgmt_service = HttpServer::new(move || {
+    HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
@@ -118,7 +121,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
 
-    future::try_join(mgmt_service, fwd_service).await?;
+    loop {
+        match event_receiver.next().await {
+            Some(network::Event::ProxyRequst { info }) => {
+                println!("Procy request is {:?}", info);
+                let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
+                let resp = send_http_request(info, Some(tmp_base)).unwrap();
+                println!("Response data is {:?}", resp);
+
+                // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
+                // let mut resp = Box::pin(async move {
+                //     send_http_request(info, Some(tmp_base)).unwrap();
+                // });
+                // let resp_data = resp.await;
+                // println!("Response data is {:?}", resp_data);
+            }
+            _ => todo!(),
+        }
+    }
+
+    // future::try_join(mgmt_service, fwd_service).await?;
 
     Ok(())
 }
