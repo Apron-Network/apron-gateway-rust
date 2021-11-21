@@ -77,6 +77,12 @@ pub enum Command {
     },
 }
 
+pub enum Event {
+    ProxyRequst { info: ProxyRequestInfo },
+
+    ProxyData { data: ProxyData },
+}
+
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
     let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
@@ -150,7 +156,8 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
-    receiver: mpsc::Receiver<Command>,
+    mut receiver: mpsc::Receiver<Command>,
+    event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -158,7 +165,7 @@ pub async fn network_event_loop(
     println!("network_event_loop started");
     swarm.behaviour_mut().gossipsub.subscribe(&topic);
 
-    let mut receiver = receiver.fuse();
+    // let mut receiver = receiver.fuse();
 
     loop {
         let share_data = data.clone();

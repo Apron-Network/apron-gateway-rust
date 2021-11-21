@@ -82,6 +82,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let peer_id = swarm.local_peer_id().clone();
 
     let (command_sender, command_receiver) = mpsc::channel(0);
+    let (event_sender, event_receiver) = mpsc::channel(0);
 
     let data = new_state::<ApronService>();
     // let service_peer_mapping = new_state::<PeerId>();
@@ -90,11 +91,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     async_std::task::spawn(network::network_event_loop(
         swarm,
         command_receiver,
+        event_sender,
         data.clone(),
     ));
 
     let p2p_handler = Data::new(SharedHandler {
-        handler: Mutex::new(command_sender),
+        command_sender: Mutex::new(command_sender),
+        event_reciver: Mutex::new(event_receiver),
     });
 
     let fwd_service = forward_service::ForwardService {

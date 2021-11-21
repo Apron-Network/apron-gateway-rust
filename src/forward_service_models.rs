@@ -7,7 +7,7 @@ pub struct TestWsMsg(pub String);
 
 // TODO: Can some params be changed to Url
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct ProxyRequestInfo {
+pub struct ProxyRequestInfo {
     pub(crate) ver: u16,
     pub(crate) user_key: String,
     pub(crate) req_path: String,
@@ -21,7 +21,7 @@ pub(crate) struct ProxyRequestInfo {
 
 #[derive(actix::Message, Debug, Serialize, Deserialize)]
 #[rtype(result = "()")]
-pub(crate) struct ProxyData {
+pub struct ProxyData {
     pub(crate) channel_id: String,
     pub(crate) data: Vec<u8>,
 }
