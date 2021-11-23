@@ -15,26 +15,46 @@ use std::collections::HashSet;
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronServiceProvider {
+    #[serde(default)]
     pub id: String,
+
+    #[serde(default)]
     pub name: String,
+
+    #[serde(default)]
     pub desc: String,
+
     pub base_url: String,
+
     pub schema: String,
-    // pub created_at: i64,
-    // pub updated_at: i64,
-    // pub extra_detail: String,
 }
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronService {
+    #[serde(default)]
     pub peer_id: String,
-    // Uniq id for service, will be generated automatically
+
+    // Uniq id for service, will be generated automatically after service is created
     pub id: String,
-    // hostname provides this service, will be used to search service while forwarding requesting.
-    pub domain_name: String,
+
+    // Name of the service
+    pub name: String,
+
+    #[serde(default)]
+    pub desc: String,
+
+    #[serde(default)]
+    pub logo: String,
+
+    #[serde(default)]
+    pub usage: String,
+
+    #[serde(default)]
+    pub user_id: String,
 
     pub providers: Vec<ApronServiceProvider>,
 
+    #[serde(default)]
     pub is_deleted: bool,
 }
 

@@ -28,23 +28,21 @@ The bootstrap node can be started with this command.
 curl --location --request POST 'http://127.0.0.1:8082/service' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "peer_id" : "",
     "id" : "test",
-    "domain_name": "localhost",
-     "is_deleted" : false,
+    "name": "foo_test",
     "providers": [
         {
             "id" : "test_provider1",
             "name": "test_provider1 http provider1",
             "desc": "test http provider1 desc",
             "base_url": "localhost:8080",
-            "schema": "ws"
+            "schema": "http"
         },
         {
             "id" : "test_provider2",
             "name": "test_provider1 http provider1",
             "desc": "test http provider1 desc",
-            "base_url": "localhost:8080",
+            "base_url": "localhost:8081",
             "schema": "ws"
         }
 
