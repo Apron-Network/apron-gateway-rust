@@ -28,6 +28,7 @@ The bootstrap node can be started with this command.
 curl --location --request POST 'http://127.0.0.1:8082/service' \
 --header 'Content-Type: application/json' \
 --data-raw '{
+    "peer_id" : "",
     "id" : "test",
     "domain_name": "localhost",
      "is_deleted" : false,

@@ -7,12 +7,13 @@ use std::error::Error;
 
 use async_std::channel;
 use futures::StreamExt;
+use crate::helpers;
 use crate::state::new_state;
 use crate::state::{AppState,set,get,all};
 use crate::service::{ ApronService, SharedHandler};
 
 pub async fn new(
-    // secret_key_seed: Option<u8>,
+    secret_key_seed: Option<u8>,
 ) -> Result<Swarm<gossipsub::Gossipsub>, Box<dyn Error>> {
     // Create a public/private key pair, either random or based on a seed.
     // let id_keys = match secret_key_seed {
@@ -28,8 +29,7 @@ pub async fn new(
     // };
     // let peer_id = id_keys.public().to_peer_id();
 
-    let local_key = identity::Keypair::generate_ed25519();
-    let local_peer_id = PeerId::from(local_key.public());
+    let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
 
     println!("Local peer id: {:?}", local_peer_id);
 
@@ -96,16 +96,11 @@ pub async fn network_event_loop(
                         message_id: id,
                         message,
                     }) => {
-                        println!(
-                            "[libp2p] receive new message {} from remote peer: {:?}",
-                            String::from_utf8_lossy(&message.data),
-                            peer_id
-                        );
                         // update local http gateway data.
                         let value = String::from_utf8_lossy(&message.data).to_string();
                         let new_service: ApronService = serde_json::from_str(&value).unwrap();
                         let key = new_service.id.clone();
-                        set(share_data, key, new_service);
+                        set(share_data, key.clone(), new_service);
                     },
                     _ => {}
                 }
