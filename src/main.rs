@@ -128,13 +128,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
                 let resp = send_http_request(info, Some(tmp_base)).await.unwrap();
                 println!("Response data is {:?}", resp);
-
-                // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                // let mut resp = Box::pin(async move {
-                //     send_http_request(info, Some(tmp_base)).unwrap();
-                // });
-                // let resp_data = resp.await;
-                // println!("Response data is {:?}", resp_data);
             }
             _ => todo!(),
         }

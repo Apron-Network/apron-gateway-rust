@@ -243,11 +243,6 @@ pub async fn network_event_loop(
                                 info: proxy_request_info
                             }).await.expect("Event receiver not to be dropped.");
 
-                            // TODO: Locate service url from service list, and build request then send to service.
-                            // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                            // let mut resp = send_http_request(proxy_request_info, Some(tmp_base)).unwrap();
-                            // println!("Response data is {:?}", &resp);
-
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
                             swarm.behaviour_mut()
