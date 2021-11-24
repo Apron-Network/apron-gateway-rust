@@ -2,6 +2,7 @@ use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
 use crate::state::{all, get, set, AppState};
+use actix_cors::Cors;
 use actix_web::{get, post, web, web::Data, App, HttpResponse, HttpServer, Responder};
 use futures::prelude::*;
 
@@ -104,7 +105,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
     HttpServer::new(move || {
+        let cors = Cors::permissive();
+
         App::new()
+            .wrap(cors)
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
