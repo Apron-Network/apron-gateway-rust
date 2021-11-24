@@ -44,6 +44,16 @@ where
     Some(hashmap.clone())
 }
 
+#[allow(dead_code)]
+pub fn values<T>(data: AppState<T>) -> Option<Vec<T>>
+where
+    T: Clone,
+{
+    let hashmap = data.lock().expect("Could not acquire lock");
+    let rcds = hashmap.clone().into_values().collect();
+    Some(rcds)
+}
+
 /// Removes an entry in the application state by key.
 /// Returns Some(T) only if the entry existed before removal.
 #[allow(dead_code)]

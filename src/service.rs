@@ -1,5 +1,5 @@
 use crate::helpers::respond_json;
-use crate::state::{all, set, AppState};
+use crate::state::{AppState, all, set, values};
 use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
 use async_std::channel;
@@ -92,11 +92,11 @@ pub async fn create_service(
 
 /// Get All services
 pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
-    let hdata = all(data).unwrap();
+    let hdata = values(data).unwrap();
 
     // for debug
-    for (key, value) in &hdata {
-        println!("{}: {}", key, value.id);
+    for (rcd) in &hdata {
+        println!("{:?}", rcd);
     }
     HttpResponse::Ok().json(hdata)
 }
