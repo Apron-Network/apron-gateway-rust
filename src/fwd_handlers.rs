@@ -1,4 +1,8 @@
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use std::collections::HashMap;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
@@ -6,6 +10,7 @@ use actix_web_actors::ws;
 use log::debug;
 
 use futures::SinkExt;
+use uuid::Bytes;
 
 use crate::helpers;
 use crate::network::Command;
@@ -22,6 +27,7 @@ pub(crate) async fn forward_http_proxy_request(
     req: HttpRequest,
     p2p_handler: Data<SharedHandler>,
     local_peer_id: Data<PeerId>,
+    mut request_id_client_session_mapping: Data<HashMap<String, Sender<web::Bytes>>>,
 ) -> impl Responder {
     println!("Local peer id: {:?}", local_peer_id);
     // Parse request from client side
@@ -36,6 +42,16 @@ pub(crate) async fn forward_http_proxy_request(
 
     println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);
 
+    let request_id: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+
+    let (resp_sender, resp_receiver): (Sender<web::Bytes>, Receiver<web::Bytes>) = mpsc::channel();
+
+    request_id_client_session_mapping.insert(request_id.clone(), resp_sender);
+
     // Send ProxyRequestInfo to service side gateway via stream
     command_sender
         .send(Command::SendRequest {
@@ -45,18 +61,6 @@ pub(crate) async fn forward_http_proxy_request(
         })
         .await
         .unwrap();
-
-    // Build request sent to forwarded service
-    // let mut foo = async move {send_http_request(req_info, None).await.unwrap()};
-    // let bar = foo.await.take_body();
-
-    // let client_req = send_http_request(req_info, None);
-    // let resp_body = client_req.unwrap().send().await.unwrap().body().await.unwrap().to_vec();
-
-    // send_http_request(req_info, None).await.unwrap()
-
-    // TODO: missing fn: pass response back to client side gateway
-    // TODO: missing fn: pass response sent from service side gateway, and respond to client
 
     HttpResponse::Ok()
 }

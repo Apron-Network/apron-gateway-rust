@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::io::Result;
+use std::sync::mpsc::Sender;
 
 use actix_web::{middleware, web, App, HttpServer};
 
@@ -11,6 +13,7 @@ pub struct ForwardService {
     pub port: i32,
     pub p2p_handler: web::Data<SharedHandler>,
     pub peer_id: PeerId,
+    pub req_id_client_session_mapping: web::Data<HashMap<String, Sender<Web::Bytes>>>,
 }
 
 impl ForwardService {
@@ -26,6 +29,7 @@ impl ForwardService {
                 .wrap(middleware::NormalizePath::default())
                 .app_data(self.p2p_handler.clone())
                 .app_data(app_data_peer_id.clone())
+                .app_data(self.req_id_client_session_mapping.clone())
                 .route(
                     "/v{ver}/{user_key}/{req_path:.*}",
                     web::to(forward_http_proxy_request),

@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::error::Error;
+use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
 use actix_web::{web, web::Data, App, HttpServer};
@@ -102,15 +104,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
+    let mut req_id_client_session_mapping : Data<HashMap<String, Sender<Web::Bytes>>>= Data::new(HashMap::new());
     forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
         peer_id,
+        req_id_client_session_mapping,
     }
     .start()
     .await;
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
+
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
