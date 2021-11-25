@@ -106,3 +106,16 @@ pub async fn send_http_request(
     let mut client_resp = HttpResponse::build(resp.status());
     Ok(client_resp.streaming(resp))
 }
+
+pub fn send_http_request_blocking(
+    req_info: ProxyRequestInfo,
+    base_url: Option<&str>,
+) -> Result<String, Box<dyn Error>> {
+    let service_uri = match base_url {
+        Some(base) => base,
+        None => return Err("No API base passed.".into()),
+    };
+
+    let body = reqwest::blocking::get("https://httpbin.org/ip").unwrap().text().unwrap();
+    Ok(body)
+}

@@ -3,18 +3,23 @@ use std::error::Error;
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
-use actix_web::{web, web::Data, App, HttpServer};
+use actix::{ContextFutureSpawner, Response};
+use actix_web::{App, HttpResponse, HttpServer, web, web::Data};
+use actix_web::body::{Body, ResponseBody};
 use async_std::channel;
 use async_std::task::block_on;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
-use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
+use libp2p::{Multiaddr, multiaddr::Protocol, PeerId};
+use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
-use crate::forward_service_utils::send_http_request;
+use crate::forward_service_models::HttpProxyResponse;
+use crate::forward_service_utils::{send_http_request, send_http_request_blocking};
+use crate::Protocol::Http;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
-use crate::state::new_state;
+use crate::state::{get, new_state};
 
 mod forward_service;
 mod forward_service_actors;
@@ -104,15 +109,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
-    let req_id_client_session_mapping = new_state::<Sender<web::Bytes>>();
+    let req_id_client_session_mapping = new_state::<Sender<HttpProxyResponse>>();
     forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
         peer_id,
-        req_id_client_session_mapping,
+        req_id_client_session_mapping: req_id_client_session_mapping.clone(),
     }
-    .start()
-    .await;
+        .start()
+        .await;
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
 
@@ -123,8 +128,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
-    .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
-    .run();
+        .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
+        .run();
 
     loop {
         match event_receiver.next().await {
@@ -132,13 +137,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Proxy request is {:?}", info.clone().request_id);
 
                 let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                let resp = send_http_request(info.clone(), Some(tmp_base))
-                    .await
-                    .unwrap();
+                let body = send_http_request_blocking(info.clone(), Some(tmp_base)).unwrap();
+
                 println!(
                     "Response data for request {} is {:?}",
-                    info.request_id, resp
+                    info.request_id, body
                 );
+
+                // Get sender from saved mapping
+                let sender = get(
+                    req_id_client_session_mapping.clone(),
+                    info.clone().request_id,
+                )
+                    .unwrap();
+
+                let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
+
+                let http_proxy_response = HttpProxyResponse {
+                    status_code: 200,
+                    headers,
+                    body: body.into(),
+                };
+
+                sender.send(http_proxy_response).unwrap();
             }
             _ => todo!(),
         }

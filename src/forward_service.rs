@@ -7,14 +7,14 @@ use actix_web::{middleware, web, App, HttpServer};
 use crate::fwd_handlers::{forward_http_proxy_request, forward_ws_proxy_request};
 use crate::service::SharedHandler;
 use crate::state::AppState;
-use crate::PeerId;
+use crate::{HttpProxyResponse, HttpResponse, PeerId};
 
 #[derive(Clone)]
 pub struct ForwardService {
     pub port: i32,
     pub p2p_handler: web::Data<SharedHandler>,
     pub peer_id: PeerId,
-    pub req_id_client_session_mapping: AppState<Sender<web::Bytes>>,
+    pub req_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 }
 
 impl ForwardService {
