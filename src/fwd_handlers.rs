@@ -12,6 +12,7 @@ use log::debug;
 use futures::SinkExt;
 use uuid::Bytes;
 
+use crate::forward_service_models::HttpProxyResponse;
 use crate::helpers;
 use crate::network::Command;
 use crate::state::{set, AppState};
@@ -28,7 +29,7 @@ pub(crate) async fn forward_http_proxy_request(
     req: HttpRequest,
     p2p_handler: Data<SharedHandler>,
     local_peer_id: Data<PeerId>,
-    request_id_client_session_mapping: AppState<Sender<web::Bytes>>,
+    request_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 ) -> impl Responder {
     println!("Local peer id: {:?}", local_peer_id);
     // TODO: Split http and websocket
@@ -44,13 +45,15 @@ pub(crate) async fn forward_http_proxy_request(
 
     println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);
 
-    let (resp_sender, resp_receiver): (Sender<web::Bytes>, Receiver<web::Bytes>) = mpsc::channel();
+    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) = mpsc::channel();
 
     set(
-        request_id_client_session_mapping,
+        request_id_client_session_mapping.clone(),
         req_info.clone().request_id,
         resp_sender.clone(),
     );
+
+    println!("FWd req id mapping: {:?}", request_id_client_session_mapping.as_ref());
 
     // Send ProxyRequestInfo to service side gateway via stream
     command_sender
@@ -62,9 +65,9 @@ pub(crate) async fn forward_http_proxy_request(
         .await
         .unwrap();
 
-    let resp_bytes = resp_receiver.recv().unwrap();
+    let proxy_resp = resp_receiver.recv().unwrap();
 
-    HttpResponse::Ok().body(resp_bytes)
+    HttpResponse::Ok().body(proxy_resp.body)
 }
 
 pub(crate) async fn forward_ws_proxy_request(

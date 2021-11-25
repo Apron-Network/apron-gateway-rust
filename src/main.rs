@@ -109,7 +109,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
-    let req_id_client_session_mapping = new_state::<Sender<HttpProxyResponse>>();
+    let req_id_client_session_mapping = Data::new(Mutex::new(HashMap::new()));
+
     forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
@@ -143,6 +144,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "Response data for request {} is {:?}",
                     info.request_id, body
                 );
+
+                println!("sender mapping: {:?}", req_id_client_session_mapping.clone());
 
                 // Get sender from saved mapping
                 let sender = get(

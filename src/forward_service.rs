@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::Result;
 use std::sync::mpsc::Sender;
 
@@ -7,7 +6,7 @@ use actix_web::{middleware, web, App, HttpServer};
 use crate::fwd_handlers::{forward_http_proxy_request, forward_ws_proxy_request};
 use crate::service::SharedHandler;
 use crate::state::AppState;
-use crate::{HttpProxyResponse, HttpResponse, PeerId};
+use crate::{HttpProxyResponse, PeerId};
 
 #[derive(Clone)]
 pub struct ForwardService {
