@@ -14,6 +14,7 @@ use uuid::Bytes;
 
 use crate::helpers;
 use crate::network::Command;
+use crate::state::{set, AppState};
 use crate::{
     forward_service_actors,
     forward_service_utils::{parse_request, send_http_request},
@@ -27,11 +28,12 @@ pub(crate) async fn forward_http_proxy_request(
     req: HttpRequest,
     p2p_handler: Data<SharedHandler>,
     local_peer_id: Data<PeerId>,
-    mut request_id_client_session_mapping: Data<HashMap<String, Sender<web::Bytes>>>,
+    request_id_client_session_mapping: AppState<Sender<web::Bytes>>,
 ) -> impl Responder {
     println!("Local peer id: {:?}", local_peer_id);
-    // Parse request from client side
     // TODO: Split http and websocket
+
+    // Parse request from client side
     let req_info = parse_request(query_args, raw_body, &req);
 
     // For p2p environment, the req_info should be sent to service side gateway via stream
@@ -42,15 +44,13 @@ pub(crate) async fn forward_http_proxy_request(
 
     println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);
 
-    let request_id: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-
     let (resp_sender, resp_receiver): (Sender<web::Bytes>, Receiver<web::Bytes>) = mpsc::channel();
 
-    request_id_client_session_mapping.insert(request_id.clone(), resp_sender);
+    set(
+        request_id_client_session_mapping,
+        req_info.clone().request_id,
+        resp_sender.clone(),
+    );
 
     // Send ProxyRequestInfo to service side gateway via stream
     command_sender
@@ -62,7 +62,9 @@ pub(crate) async fn forward_http_proxy_request(
         .await
         .unwrap();
 
-    HttpResponse::Ok()
+    let resp_bytes = resp_receiver.recv().unwrap();
+
+    HttpResponse::Ok().body(resp_bytes)
 }
 
 pub(crate) async fn forward_ws_proxy_request(

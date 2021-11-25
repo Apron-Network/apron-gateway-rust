@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
-    let mut req_id_client_session_mapping : Data<HashMap<String, Sender<Web::Bytes>>>= Data::new(HashMap::new());
+    let req_id_client_session_mapping = new_state::<Sender<web::Bytes>>();
     forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
@@ -129,10 +129,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         match event_receiver.next().await {
             Some(network::Event::ProxyRequst { info }) => {
-                println!("Procy request is {:?}", info);
+                println!("Proxy request is {:?}", info.clone().request_id);
+
                 let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                let resp = send_http_request(info, Some(tmp_base)).await.unwrap();
-                println!("Response data is {:?}", resp);
+                let resp = send_http_request(info.clone(), Some(tmp_base))
+                    .await
+                    .unwrap();
+                println!(
+                    "Response data for request {} is {:?}",
+                    info.request_id, resp
+                );
             }
             _ => todo!(),
         }

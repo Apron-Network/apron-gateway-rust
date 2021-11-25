@@ -6,8 +6,9 @@ use std::collections::HashMap;
 pub struct TestWsMsg(pub String);
 
 // TODO: Can some params be changed to Url
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProxyRequestInfo {
+    pub(crate) request_id: String,
     pub(crate) ver: u16,
     pub(crate) user_key: String,
     pub(crate) req_path: String,

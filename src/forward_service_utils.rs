@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::error::Error;
 
-use actix_web::{HttpRequest, HttpResponse, web};
+use actix_web::{web, HttpRequest, HttpResponse};
 use awc::ClientRequest;
 use log::{info, warn};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use url::Url;
 
 use crate::forward_service_models::ProxyRequestInfo;
@@ -13,7 +15,16 @@ pub(crate) fn parse_request(
     raw_body: web::Bytes,
     req: &HttpRequest,
 ) -> ProxyRequestInfo {
+    // Generate unique request_id to receive correct response
+    let request_id: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+
     let mut req_info = ProxyRequestInfo {
+        service_id: String::from(""), // TODO: Use this id to get service detail in service side gw
+        request_id,
         ver: req.match_info().query("ver").parse().unwrap(),
         user_key: req.match_info().query("user_key").parse().unwrap(),
         req_path: req.match_info().query("req_path").parse().unwrap(),
