@@ -50,6 +50,9 @@ pub struct ApronService {
     pub usage: String,
 
     #[serde(default)]
+    pub price_plan: String,
+
+    #[serde(default)]
     pub user_id: String,
 
     pub providers: Vec<ApronServiceProvider>,
