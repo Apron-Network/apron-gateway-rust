@@ -8,19 +8,24 @@ use actix_web::{App, HttpResponse, HttpServer, web, web::Data};
 use actix_web::body::{Body, ResponseBody};
 use async_std::channel;
 use async_std::task::block_on;
+use awc::http::header::fmt_comma_delimited;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use libp2p::{Multiaddr, multiaddr::Protocol, PeerId};
+use libp2p::gossipsub::Topic;
 use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
+// use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
-use crate::forward_service_utils::{send_http_request, send_http_request_blocking};
+use crate::forward_service_utils::send_http_request_blocking;
+use crate::network::FileRequest;
 use crate::Protocol::Http;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};
 
+// mod event_loop;
 mod forward_service;
 mod forward_service_actors;
 mod forward_service_models;
@@ -96,12 +101,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let data = new_state::<ApronService>();
     // let service_peer_mapping = new_state::<PeerId>();
 
-    // Spawn away the event loop that will keep the swarm going.
+    let topic = String::from("apron-test-net");
+
+    // let req_id_client_session_mapping = Data::new(Mutex::new(Sender<HttpProxyResponse>));
+    let req_id_client_session_mapping = new_state::<Sender<HttpProxyResponse>>();
+
     async_std::task::spawn(network::network_event_loop(
         swarm,
         command_receiver,
         event_sender,
         data.clone(),
+        req_id_client_session_mapping.clone(),
     ));
 
     let p2p_handler = Data::new(SharedHandler {
@@ -109,7 +119,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
-    let req_id_client_session_mapping = Data::new(Mutex::new(HashMap::new()));
 
     forward_service::ForwardService {
         port: opt.forward_port,
@@ -134,7 +143,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         match event_receiver.next().await {
-            Some(network::Event::ProxyRequst { info }) => {
+            Some(network::Event::ProxyRequest { info }) => {
+                // Handle proxy request in service side gateway
                 println!("Proxy request is {:?}", info.clone().request_id);
 
                 let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
@@ -142,27 +152,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 println!(
                     "Response data for request {} is {:?}",
-                    info.request_id, body
+                    info.request_id,
+                    body.clone()
                 );
 
-                println!("sender mapping: {:?}", req_id_client_session_mapping.clone());
+                // TODO: Send response back to client side gateway with any network::Event, with request id attached, NOT FIND SENDER HERE!!!!
+                // TODO: A new hashmap, saving request id and service connection, wait for data from client side gateway.
 
-                // Get sender from saved mapping
-                let sender = get(
-                    req_id_client_session_mapping.clone(),
-                    info.clone().request_id,
-                )
-                    .unwrap();
+                // let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
 
-                let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
+                // let http_proxy_response = HttpProxyResponse {
+                //     status_code: 200,
+                //     headers,
+                //     body: body.into(),
+                // };
 
-                let http_proxy_response = HttpProxyResponse {
-                    status_code: 200,
-                    headers,
-                    body: body.into(),
-                };
-
-                sender.send(http_proxy_response).unwrap();
+                // swarm.behaviour_mut().request_response.send_request(
+                //     &source_peer_id,
+                //     FileRequest(bincode::serialize(&http_proxy_response).unwrap()),
+                // );
             }
             _ => todo!(),
         }

@@ -33,6 +33,7 @@ pub struct ProxyData {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HttpProxyResponse {
+    pub(crate) request_id: String,
     pub(crate) status_code: u16,
     pub(crate) headers: HashMap<String, Vec<u8>>,
     pub(crate) body: Vec<u8>,

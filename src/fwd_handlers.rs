@@ -18,7 +18,7 @@ use crate::network::Command;
 use crate::state::{set, AppState};
 use crate::{
     forward_service_actors,
-    forward_service_utils::{parse_request, send_http_request},
+    forward_service_utils::{parse_request},
     PeerId, SharedHandler,
 };
 
@@ -45,7 +45,8 @@ pub(crate) async fn forward_http_proxy_request(
 
     println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);
 
-    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) = mpsc::channel();
+    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
+        mpsc::channel();
 
     set(
         request_id_client_session_mapping.clone(),
@@ -53,7 +54,10 @@ pub(crate) async fn forward_http_proxy_request(
         resp_sender.clone(),
     );
 
-    println!("FWd req id mapping: {:?}", request_id_client_session_mapping.as_ref());
+    println!(
+        "Fwd req id mapping: {:?}",
+        request_id_client_session_mapping.as_ref()
+    );
 
     // Send ProxyRequestInfo to service side gateway via stream
     command_sender

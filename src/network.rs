@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
+use std::sync::mpsc::Sender;
 
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
+use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
@@ -18,12 +21,11 @@ use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 use url::Url;
 
-use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
-use crate::forward_service_utils::send_http_request;
+use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
+use crate::forward_service_utils::send_http_request_blocking;
 use crate::helpers;
 use crate::service::ApronService;
-use crate::state::{set, AppState};
-use futures::channel::{mpsc, oneshot};
+use crate::state::{get, set, AppState};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -79,37 +81,9 @@ pub enum Command {
 }
 
 pub enum Event {
-    ProxyRequst { info: ProxyRequestInfo },
+    ProxyRequest { info: ProxyRequestInfo },
 
     ProxyData { data: ProxyData },
-}
-
-pub async fn block_on_event_loop(mut event_receiver: mpsc::Receiver<Event>) {
-    println!("start block_on_event_loop");
-    let mut event_receiver = event_receiver.fuse();
-    loop {
-        match event_receiver.next().await {
-            Some(Event::ProxyRequst { info }) => {
-                println!("Procy request is {:?}", info);
-                // let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                // let resp = send_http_request(info, Some(tmp_base)).unwrap();
-                // println!("Response data is {:?}", resp);
-
-                let client = actix_web::client::Client::new();
-                let mut service_url = Url::parse("https://httpbin.org/anything").unwrap();
-                // let service_url = Url::parse(&String::from_utf8_lossy(&request)).unwrap();
-                let client_req = client.get(service_url.as_str());
-                let mut response = client_req.send().await.unwrap();
-
-                let resp_body = response.body().limit(20_000_000).await.unwrap().to_vec();
-                println!("Response body is {:?}", resp_body);
-
-                // send response using another request
-                // println!("Request from Peer id {:?}", peer);
-            }
-            _ => todo!(),
-        }
-    }
 }
 
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
@@ -188,6 +162,7 @@ pub async fn network_event_loop(
     mut receiver: mpsc::Receiver<Command>,
     mut event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
+    req_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 ) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
@@ -239,25 +214,43 @@ pub async fn network_event_loop(
                             let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
                             println!("ProxyRequestInfo is {:?}", proxy_request_info);
 
-                            event_sender.send( Event::ProxyRequst{
-                                info: proxy_request_info
-                            }).await.expect("Event receiver not to be dropped.");
+                            let client_side_req_id = proxy_request_info.clone().request_id;
+
+                            let tmp_base = "http://localhost:8923/anything";
+                            let body = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+
+                let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
+                            let resp = HttpProxyResponse{
+                                request_id: client_side_req_id,
+                                 status_code: 200,
+                                  headers,
+                                   body: body.into(),
+                                 };
+
+                            // This code sending request to loop running in main
+                            // event_sender.send( Event::ProxyRequest{
+                            //     info: proxy_request_info,
+                            // }).await.expect("Event receiver not to be dropped.");
 
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
                             swarm.behaviour_mut()
                                     .request_response
-                                    .send_response(channel, FileResponse(String::from("ok").into_bytes()));
+                                    .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
                         }
 
                         RequestResponseMessage::Response { request_id, response, } => {
                             println!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
+                            let resp: HttpProxyResponse = bincode::deserialize(&response.0).unwrap();
                             println!(
                                 "recevie request {:?} Ack from {:?}: {:?}",
                                 request_id,
                                 peer,
-                                String::from_utf8_lossy(&response.0).to_string()
+                                resp
                             );
+
+                            let sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                            sender.send(resp);
                         }
                     }
 
@@ -322,6 +315,7 @@ pub async fn network_event_loop(
                         Command::SendRequest { peer, data } => {
                             println!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
+                            println!("libp2p Request id of SendRequest command is: {:?}", request_id);
                         }
                         Command::SendResponse { data, channel} => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
@@ -347,10 +341,10 @@ pub struct DataExchangeCodec();
 //     schema: String,
 //     data: String,
 // }
-pub struct FileRequest(Vec<u8>);
+pub struct FileRequest(pub(crate) Vec<u8>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileResponse(Vec<u8>);
+pub struct FileResponse(pub(crate) Vec<u8>);
 
 //    pub struct Payload {
 //        pub schema: String,
