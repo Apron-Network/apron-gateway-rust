@@ -16,11 +16,7 @@ use crate::forward_service_models::HttpProxyResponse;
 use crate::helpers;
 use crate::network::Command;
 use crate::state::{set, AppState};
-use crate::{
-    forward_service_actors,
-    forward_service_utils::{parse_request},
-    PeerId, SharedHandler,
-};
+use crate::{forward_service_actors, forward_service_utils::parse_request, PeerId, SharedHandler};
 
 // TODO: This should be invoked in service side gw
 pub(crate) async fn forward_http_proxy_request(
@@ -32,7 +28,6 @@ pub(crate) async fn forward_http_proxy_request(
     request_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 ) -> impl Responder {
     println!("Local peer id: {:?}", local_peer_id);
-    // TODO: Split http and websocket
 
     // Parse request from client side
     let req_info = parse_request(query_args, raw_body, &req);
@@ -40,7 +35,6 @@ pub(crate) async fn forward_http_proxy_request(
     // For p2p environment, the req_info should be sent to service side gateway via stream
     let mut command_sender = p2p_handler.command_sender.lock().unwrap();
 
-    // TODO: Hard coded, should be replaced with registered service data
     let (remote_key, remote_peer_id) = helpers::generate_peer_id_from_seed(Some(1));
 
     println!("[fwd] Request info: {:?} to {}", &req_info, remote_peer_id);

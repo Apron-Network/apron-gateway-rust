@@ -90,21 +90,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
     // Create a public/private key pair, either random or based on a seed.
     let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
 
-    // let local_key = identity::Keypair::generate_ed25519();
-    // let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {:?}", local_peer_id);
-
-    // println!(
-    //     "[libp2p] local peer id to bytes {:?}",
-    //     local_peer_id.to_bytes()
-    // );
-    // println!(
-    //     "[libp2p] local peer id base 58 encode {}",
-    //     local_peer_id.to_base58()
-    // );
-    // let encoded = local_peer_id.to_string();
-    // let decoded = PeerId::from_str(&encoded);
-    // println!("[libp2p] local peer id base 58 decode {}", decoded.unwrap());
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
     let transport = libp2p::development_transport(local_key.clone()).await;
@@ -133,13 +119,6 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
         );
         let kademlia = Kademlia::new(local_peer_id, MemoryStore::new(local_peer_id));
 
-        // match remote_peer_addr {
-        //     Some(remote_peer_addr) => {
-        //         kademlia.add_address(&local_peer_id, remote_peer_addr);
-        //     }
-        //     None => {}
-        // }
-
         // build the swarm
         libp2p::Swarm::new(
             transport.unwrap(),
@@ -151,8 +130,6 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
             local_peer_id,
         )
     };
-
-    // let (command_sender, command_receiver) =  channel::unbounded();
 
     Ok(swarm)
 }
@@ -216,6 +193,7 @@ pub async fn network_event_loop(
 
                             let client_side_req_id = proxy_request_info.clone().request_id;
 
+                            // TODO: Replace this hard coded base to value fetched from service
                             let tmp_base = "http://localhost:8923/anything";
                             let body = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
 
@@ -226,11 +204,6 @@ pub async fn network_event_loop(
                                   headers,
                                    body: body.into(),
                                  };
-
-                            // This code sending request to loop running in main
-                            // event_sender.send( Event::ProxyRequest{
-                            //     info: proxy_request_info,
-                            // }).await.expect("Event receiver not to be dropped.");
 
                             // The response is sent using another request // Send Ack to remote
                             // Send Ack to remote
@@ -243,7 +216,7 @@ pub async fn network_event_loop(
                             println!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
                             let resp: HttpProxyResponse = bincode::deserialize(&response.0).unwrap();
                             println!(
-                                "recevie request {:?} Ack from {:?}: {:?}",
+                                "receive request {:?} Ack from {:?}: {:?}",
                                 request_id,
                                 peer,
                                 resp
