@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::error::Error;
 
+use actix_web::web::head;
 use actix_web::{web, HttpRequest, HttpResponse};
+use awc::http::HeaderName;
 use awc::ClientRequest;
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
@@ -79,7 +82,7 @@ pub fn send_http_request_blocking(
 
     let client = reqwest::blocking::Client::new();
 
-    let mut client_req = match req_info.http_method.as_str() {
+    let client_req = match req_info.http_method.as_str() {
         "GET" => client.get(service_url),
         "POST" => client.post(service_url),
         "PUT" => client.put(service_url),
@@ -88,10 +91,13 @@ pub fn send_http_request_blocking(
     };
 
     // TODO: Set headers
-    let mut headers = HeaderMap::new();
-    // for (key, val) in req_info.headers.iter() {
-    //     headers.insert(key.parse().unwrap(), val.parse().unwrap());
-    // }
+    let headers = {
+        let mut headers = HeaderMap::new();
+        for (key, val) in req_info.headers.iter() {
+            headers.insert(HeaderName::try_from(key).unwrap(), val.parse().unwrap());
+        }
+        headers
+    };
 
     // Fill query args
     let mut query_args = Vec::new();
