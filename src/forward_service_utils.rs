@@ -74,7 +74,7 @@ pub(crate) fn parse_request(
 pub fn send_http_request_blocking(
     req_info: ProxyRequestInfo,
     base_url: Option<&str>,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<HttpProxyResponse, Box<dyn Error>> {
     let service_url = match base_url {
         Some(base) => base,
         None => return Err("No API base passed.".into()),
@@ -90,7 +90,6 @@ pub fn send_http_request_blocking(
         _ => panic!("Unknown http method: {}", req_info.http_method),
     };
 
-    // TODO: Set headers
     let headers = {
         let mut headers = HeaderMap::new();
         for (key, val) in req_info.headers.iter() {
@@ -105,13 +104,22 @@ pub fn send_http_request_blocking(
         query_args.push((key, val));
     }
 
-    let body = client_req
+    let resp = client_req
         .query(&query_args)
         .headers(headers)
         .send()
-        .unwrap()
-        .text()
         .unwrap();
 
-    Ok(body)
+    Ok(HttpProxyResponse {
+        request_id: req_info.request_id,
+        status_code: resp.status().as_u16(),
+        headers: {
+            let mut headers = HashMap::new();
+            for (key, value) in resp.headers().iter() {
+                headers.insert(key.to_string(), Vec::from(value.to_str().unwrap()));
+            }
+            headers
+        },
+        body: Vec::from(resp.text().unwrap()),
+    })
 }

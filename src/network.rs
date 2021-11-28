@@ -195,18 +195,9 @@ pub async fn network_event_loop(
 
                             // TODO: Replace this hard coded base to value fetched from service
                             let tmp_base = "http://localhost:8923/anything";
-                            let body = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+                            let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
 
-                let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
-                            let resp = HttpProxyResponse{
-                                request_id: client_side_req_id,
-                                 status_code: 200,
-                                  headers,
-                                   body: body.into(),
-                                 };
-
-                            // The response is sent using another request // Send Ack to remote
-                            // Send Ack to remote
+                            // Send resp to client side gateway
                             swarm.behaviour_mut()
                                     .request_response
                                     .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));

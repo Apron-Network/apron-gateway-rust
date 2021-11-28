@@ -4,15 +4,15 @@ use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
 use actix::{ContextFutureSpawner, Response};
+use actix_web::{App, HttpResponse, HttpServer, web, web::Data};
 use actix_web::body::{Body, ResponseBody};
-use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
 use async_std::channel;
 use async_std::task::block_on;
 use awc::http::header::fmt_comma_delimited;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
+use libp2p::{Multiaddr, multiaddr::Protocol, PeerId};
 use libp2p::gossipsub::Topic;
-use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
@@ -20,10 +20,10 @@ use structopt::StructOpt;
 use crate::forward_service_models::HttpProxyResponse;
 use crate::forward_service_utils::send_http_request_blocking;
 use crate::network::FileRequest;
+use crate::Protocol::Http;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};
-use crate::Protocol::Http;
 
 // mod event_loop;
 mod forward_service;
@@ -119,63 +119,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // event_reciver: Mutex::new(event_receiver),
     });
 
-    forward_service::ForwardService {
+    let fwd_service = forward_service::ForwardService {
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
         peer_id,
         req_id_client_session_mapping: req_id_client_session_mapping.clone(),
     }
-    .start()
-    .await;
+        .start();
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
 
-    HttpServer::new(move || {
+    let mgmt_service = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
-    .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
-    .run();
+        .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
+        .run();
 
-    loop {
-        match event_receiver.next().await {
-            Some(network::Event::ProxyRequest { info }) => {
-                // Handle proxy request in service side gateway
-                println!("Proxy request is {:?}", info.clone().request_id);
-
-                let tmp_base = "https://webhook.site/7b86ef43-5748-4a00-8f14-3ccaaa4d6253";
-                let body = send_http_request_blocking(info.clone(), Some(tmp_base)).unwrap();
-
-                println!(
-                    "Response data for request {} is {:?}",
-                    info.request_id,
-                    body.clone()
-                );
-
-                // TODO: Send response back to client side gateway with any network::Event, with request id attached, NOT FIND SENDER HERE!!!!
-                // TODO: A new hashmap, saving request id and service connection, wait for data from client side gateway.
-
-                // let mut headers: HashMap<String, Vec<u8>> = HashMap::new();
-
-                // let http_proxy_response = HttpProxyResponse {
-                //     status_code: 200,
-                //     headers,
-                //     body: body.into(),
-                // };
-
-                // swarm.behaviour_mut().request_response.send_request(
-                //     &source_peer_id,
-                //     FileRequest(bincode::serialize(&http_proxy_response).unwrap()),
-                // );
-            }
-            _ => todo!(),
-        }
-    }
-
-    // future::try_join(mgmt_service, fwd_service).await?;
+    future::try_join(mgmt_service, fwd_service).await?;
 
     Ok(())
 }
