@@ -4,6 +4,7 @@ use std::error::Error;
 
 use actix_web::web::head;
 use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web_actors::ws;
 use awc::http::HeaderName;
 use awc::ClientRequest;
 use log::{info, warn};
@@ -13,11 +14,13 @@ use reqwest::header::HeaderMap;
 use url::Url;
 
 use crate::forward_service_models::ProxyRequestInfo;
+use crate::{forward_service_actors, HttpProxyResponse};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
     raw_body: web::Bytes,
     req: &HttpRequest,
+    is_websocket: bool,
 ) -> ProxyRequestInfo {
     // Generate unique request_id to receive correct response
     let request_id: String = thread_rng()
@@ -38,6 +41,7 @@ pub(crate) fn parse_request(
         raw_body: raw_body.to_vec(),
         json_data: Default::default(),
         form_data: Default::default(),
+        is_websocket,
     };
 
     // TODO: user key should be split into service id and user id.
@@ -123,3 +127,17 @@ pub fn send_http_request_blocking(
         body: Vec::from(resp.text().unwrap()),
     })
 }
+
+// Function connects to websocket service, should only be invoked in service side gateway.
+// pub fn connect_to_ws_service() {
+//     let resp = ws::start(
+//         forward_service_actors::ClientSideWsActor {
+//             service_uri: "ws://localhost:10000",
+//             addr: None,
+//         },
+//         &req,
+//         stream,
+//     );
+//     println!("Resp: {:?}", resp);
+//     resp
+// }

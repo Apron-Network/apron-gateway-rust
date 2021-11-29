@@ -11,7 +11,7 @@ use futures::stream::SplitSink;
 use futures::StreamExt;
 use log::{debug, error, info};
 
-use crate::forward_service_models::{ProxyData, TestWsMsg};
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
 
 // Service side actor
 pub(crate) struct ServiceSideWsActor {
@@ -51,11 +51,9 @@ impl Handler<TestWsMsg> for ServiceSideWsActor {
 
 impl actix::io::WriteHandler<WsProtocolError> for ServiceSideWsActor {}
 
-// Service side actor
-
+// Client side actor
 pub(crate) struct ClientSideWsActor {
-    pub(crate) service_uri: &'static str,
-    pub(crate) addr: Option<Addr<ServiceSideWsActor>>,
+    pub(crate) req_info: ProxyRequestInfo,
 }
 
 impl Actor for ClientSideWsActor {
@@ -64,12 +62,14 @@ impl Actor for ClientSideWsActor {
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("ClientSideGateway: Started to receive message...");
 
-        connect_to_service(self.service_uri, ctx.address())
-            .into_actor(self)
-            .map(|addr_to_service, forward_ws, ctx| {
-                forward_ws.addr = Some(addr_to_service);
-            })
-            .spawn(ctx);
+        // TODO: Start mpsc::channel to get data from ProxyData command handler
+
+        // connect_to_service(self.service_uri, ctx.address())
+        //     .into_actor(self)
+        //     .map(|addr_to_service, forward_ws, ctx| {
+        //         forward_ws.addr = Some(addr_to_service);
+        //     })
+        //     .spawn(ctx);
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -80,7 +80,7 @@ impl Actor for ClientSideWsActor {
 // Handler for message sent from client side
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        debug!("ClientSideGateway: receive ws msg from client: {:?}", msg);
+        info!("ClientSideGateway: receive ws msg from client: {:?}", msg);
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Binary(bin)) => {
@@ -93,16 +93,17 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
                 //     channel_id: "".to_string(),
                 //     data: Vec::from(text),
                 // };
-                debug!("Msg: {:?}", text);
+                info!("Msg: {:?}", text);
+                ctx.text(text);
                 // TODO: Forward message to service ws client
-                match &self.addr {
-                    None => {
-                        error!("Addr not set");
-                    }
-                    Some(addr) => {
-                        addr.do_send(TestWsMsg(text));
-                    }
-                }
+                // match &self.addr {
+                //     None => {
+                //         error!("Addr not set");
+                //     }
+                //     Some(addr) => {
+                //         addr.do_send(TestWsMsg(text));
+                //     }
+                // }
             }
             _ => (),
         }

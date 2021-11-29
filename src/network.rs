@@ -193,14 +193,24 @@ pub async fn network_event_loop(
 
                             let client_side_req_id = proxy_request_info.clone().request_id;
 
-                            // TODO: Replace this hard coded base to value fetched from service
-                            let tmp_base = "http://localhost:8923/anything";
-                            let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+                            if (proxy_request_info.clone().is_websocket) {
+                                println!("Forwarding ws request is under developing");
+                                // let tmp_base = "http://localhost:10000";
+                                //
+                                // let (ws_data_sender, ws_data_receiver) = mpsc::channel(0);
 
-                            // Send resp to client side gateway
-                            swarm.behaviour_mut()
-                                    .request_response
-                                    .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
+                                // A new function that connect to websocket server, passed in ws_data_sender
+
+                            } else {
+                            // TODO: Replace this hard coded base to value fetched from service
+                                let tmp_base = "http://localhost:8923/anything";
+                                let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+
+                                // Send resp to client side gateway
+                                swarm.behaviour_mut()
+                                        .request_response
+                                        .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
+                            }
                         }
 
                         RequestResponseMessage::Response { request_id, response, } => {

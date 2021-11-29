@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use actix_web::web;
-use awc::http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 
 #[derive(actix::Message, Debug)]
@@ -22,6 +21,7 @@ pub struct ProxyRequestInfo {
     pub(crate) raw_body: Vec<u8>,
     pub(crate) json_data: HashMap<String, String>,
     pub(crate) form_data: HashMap<String, String>,
+    pub(crate) is_websocket: bool,
 }
 
 #[derive(actix::Message, Debug, Serialize, Deserialize)]
