@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
-use std::sync::mpsc::Sender;
 
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
+use awc::http::Uri;
+use awc::Client;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
@@ -81,7 +82,10 @@ pub enum Command {
 }
 
 pub enum Event {
-    ProxyRequest { info: ProxyRequestInfo },
+    ProxyRequestToMainLoop {
+        info: ProxyRequestInfo,
+        data_sender: mpsc::Sender<Vec<u8>>,
+    },
 
     ProxyData { data: ProxyData },
 }
@@ -139,7 +143,7 @@ pub async fn network_event_loop(
     mut receiver: mpsc::Receiver<Command>,
     mut event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
-    req_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
+    req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
 ) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
@@ -194,15 +198,26 @@ pub async fn network_event_loop(
                             let client_side_req_id = proxy_request_info.clone().request_id;
 
                             if (proxy_request_info.clone().is_websocket) {
-                                println!("Forwarding ws request is under developing");
-                                // let tmp_base = "http://localhost:10000";
-                                //
-                                // let (ws_data_sender, ws_data_receiver) = mpsc::channel(0);
+                                // Running on service side gateway, after receiving websocket request,
+                                // forward the request directly to main loop since the event handler
+                                // can't process async tasks well.
+                                println!("Forwarding ws request to main loop");
+                                let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
+                                event_sender.send(Event::ProxyRequestToMainLoop{
+                                    info: proxy_request_info,
+                                    data_sender: ws_data_sender,
+                                }).await.expect("Event receiver not to be dropped.");
 
-                                // A new function that connect to websocket server, passed in ws_data_sender
-
+                                match ws_data_receiver.next().await {
+                                    Some(data) => {
+                                        println!("Proxy data received is {:?}", data);
+                                        // // swarm.behaviour_mut().request_response.send_request()
+                                        // data_sender.send(Vec::from("Hello What"));
+                                    }
+                                    _ => {}
+                                }
                             } else {
-                            // TODO: Replace this hard coded base to value fetched from service
+                                // TODO: Replace this hard coded base to value fetched from service
                                 let tmp_base = "http://localhost:8923/anything";
                                 let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
 
@@ -223,8 +238,10 @@ pub async fn network_event_loop(
                                 resp
                             );
 
-                            let sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
-                            sender.send(resp);
+                            println!("================ send response back");
+
+                            let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                            sender.send(resp).await.expect("Event receiver not to be dropped.");
                         }
                     }
 

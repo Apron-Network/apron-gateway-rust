@@ -1,17 +1,24 @@
 use actix::io::SinkWrite;
 use actix::*;
 use actix_codec::Framed;
+use actix_web::web::Data;
 use actix_web_actors::ws;
 use awc::error::WsProtocolError;
 use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
 use awc::BoxedSocket;
 use awc::Client;
+use futures::executor::block_on;
+use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
+use libp2p::PeerId;
 use log::{debug, error, info};
 
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
+use crate::mpsc::Sender;
+use crate::network::Command;
+use crate::SharedHandler;
 
 // Service side actor
 pub(crate) struct ServiceSideWsActor {
@@ -54,6 +61,8 @@ impl actix::io::WriteHandler<WsProtocolError> for ServiceSideWsActor {}
 // Client side actor
 pub(crate) struct ClientSideWsActor {
     pub(crate) req_info: ProxyRequestInfo,
+    pub(crate) remote_peer_id: PeerId,
+    pub(crate) p2p_handler: Data<SharedHandler>,
 }
 
 impl Actor for ClientSideWsActor {
@@ -61,15 +70,14 @@ impl Actor for ClientSideWsActor {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("ClientSideGateway: Started to receive message...");
+        let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
+
+        block_on(command_sender.send(Command::SendRequest {
+            peer: self.remote_peer_id,
+            data: bincode::serialize(&self.req_info).unwrap(),
+        }));
 
         // TODO: Start mpsc::channel to get data from ProxyData command handler
-
-        // connect_to_service(self.service_uri, ctx.address())
-        //     .into_actor(self)
-        //     .map(|addr_to_service, forward_ws, ctx| {
-        //         forward_ws.addr = Some(addr_to_service);
-        //     })
-        //     .spawn(ctx);
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {

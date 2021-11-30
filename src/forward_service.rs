@@ -1,7 +1,7 @@
 use std::io::Result;
-use std::sync::mpsc::Sender;
 
 use actix_web::{middleware, web, App, HttpServer};
+use futures::channel::mpsc;
 
 use crate::fwd_handlers::{forward_http_proxy_request, forward_ws_proxy_request};
 use crate::service::SharedHandler;
@@ -13,7 +13,7 @@ pub struct ForwardService {
     pub port: i32,
     pub p2p_handler: web::Data<SharedHandler>,
     pub peer_id: PeerId,
-    pub req_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
+    pub req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
 }
 
 impl ForwardService {

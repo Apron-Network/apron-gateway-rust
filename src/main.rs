@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 
-use actix::{ContextFutureSpawner, Response};
+use actix::{spawn, Arbiter, ContextFutureSpawner, Response};
 use actix_web::body::{Body, ResponseBody};
 use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
-use async_std::channel;
 use async_std::task::block_on;
 use awc::http::header::fmt_comma_delimited;
+use awc::http::Uri;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use libp2p::gossipsub::Topic;
@@ -19,7 +18,7 @@ use structopt::StructOpt;
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
 use crate::forward_service_utils::send_http_request_blocking;
-use crate::network::FileRequest;
+use crate::network::{Event, FileRequest};
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};
@@ -104,8 +103,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let topic = String::from("apron-test-net");
 
-    // let req_id_client_session_mapping = Data::new(Mutex::new(Sender<HttpProxyResponse>));
-    let req_id_client_session_mapping = new_state::<Sender<HttpProxyResponse>>();
+    // let req_id_client_session_mapping = Data::new(Mutex::new(mpsc::Sender<HttpProxyResponse>));
+    let req_id_client_session_mapping = new_state::<mpsc::Sender<HttpProxyResponse>>();
 
     async_std::task::spawn(network::network_event_loop(
         swarm,
@@ -139,6 +138,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
+
+    // Websocket connect loop
+    Arbiter::spawn(async move {
+        match event_receiver.next().await {
+            Some(network::Event::ProxyRequestToMainLoop {
+                info,
+                mut data_sender,
+            }) => {
+                println!("Proxy request received is {:?}", info.clone().request_id);
+                // swarm.behaviour_mut().request_response.send_request()
+                data_sender.send(Vec::from("Hello What"));
+            }
+            _ => {}
+        }
+    });
 
     future::try_join(mgmt_service, fwd_service).await?;
 

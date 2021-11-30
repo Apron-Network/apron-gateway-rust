@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
 
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
-use futures::SinkExt;
-use log::{debug, info};
+use futures::channel::mpsc;
+use futures::channel::mpsc::{Receiver, Sender};
+use futures::{SinkExt, StreamExt};
+use log::{debug, info, warn, error};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use uuid::Bytes;
@@ -50,8 +50,8 @@ pub(crate) async fn forward_http_proxy_request(
     debug!("ClientSideGateway: Req info: {:?}", req_info);
     debug!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
-    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
-        mpsc::channel();
+    let (resp_sender, mut resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
+        mpsc::channel(0);
 
     // Save mapping between request_id and response sender,
     // which will be used to locate correct client session while getting response
@@ -76,9 +76,16 @@ pub(crate) async fn forward_http_proxy_request(
         .await
         .unwrap();
 
-    let proxy_resp = resp_receiver.recv().unwrap();
-
-    HttpResponse::Ok().body(proxy_resp.body)
+    match resp_receiver.next().await {
+        Some(resp) => {
+            info!("Got HttpProxyResponse data");
+            HttpResponse::Ok().body(resp.body)
+        }
+        _ => {
+            error!("Got Non HttpProxyResponse data");
+            HttpResponse::ServiceUnavailable().body("")
+        }
+    }
 }
 
 pub(crate) async fn forward_ws_proxy_request(
@@ -99,7 +106,7 @@ pub(crate) async fn forward_ws_proxy_request(
     info!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
     let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
-        mpsc::channel();
+        mpsc::channel(0);
 
     // Save mapping between request_id and response sender,
     // which will be used to locate correct client session while getting response
@@ -114,33 +121,18 @@ pub(crate) async fn forward_ws_proxy_request(
         request_id_client_session_mapping.as_ref()
     );
 
-    // TODO: Check whether the request info can be all parsed from req object.
-    ws::start(ClientSideWsActor { req_info }, &req, stream)
-
     // Create websocket session between ClientSideGateway and Client
+    ws::start(
+        ClientSideWsActor {
+            req_info,
+            remote_peer_id,
+            p2p_handler,
+        },
+        &req,
+        stream,
+    )
 
-    // let mut command_sender = p2p_handler.command_sender.lock().unwrap();
-    // command_sender
-    //     .send(Command::SendRequest {
-    //         peer: remote_peer_id,
-    //         data: bincode::serialize(&req_info).unwrap(),
-    //     })
-    //     .await
-    //     .unwrap();
-    //
     // let proxy_resp = resp_receiver.recv().unwrap();
     //
     // HttpResponse::Ok().body(proxy_resp.body)
-
-    // // TODO: Change to configured ws server addr
-    // let resp = ws::start(
-    //     forward_service_actors::ClientSideWsActor {
-    //         service_uri: "ws://localhost:10000",
-    //         addr: None,
-    //     },
-    //     &req,
-    //     stream,
-    // );
-    // println!("Resp: {:?}", resp);
-    // resp
 }
