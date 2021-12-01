@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::error::Error;
 
 use actix_web::web::head;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest};
 use actix_web_actors::ws;
 use awc::http::HeaderName;
 use awc::ClientRequest;

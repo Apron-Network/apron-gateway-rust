@@ -204,15 +204,22 @@ pub async fn network_event_loop(
                                 println!("Forwarding ws request to main loop");
                                 let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
                                 event_sender.send(Event::ProxyRequestToMainLoop{
-                                    info: proxy_request_info,
+                                    info: proxy_request_info.clone(),
                                     data_sender: ws_data_sender,
                                 }).await.expect("Event receiver not to be dropped.");
 
                                 match ws_data_receiver.next().await {
                                     Some(data) => {
-                                        println!("Proxy data received is {:?}", data);
-                                        // // swarm.behaviour_mut().request_response.send_request()
-                                        // data_sender.send(Vec::from("Hello What"));
+                                        println!("Proxy data received from main loop is {:?}", data);
+                                        let resp = HttpProxyResponse{
+                                            request_id: proxy_request_info.request_id,
+                                            status_code: 200,
+                                            headers: HashMap::new(),
+                                            body: data,
+                                        };
+                                        swarm.behaviour_mut()
+                                                .request_response
+                                                .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
                                     }
                                     _ => {}
                                 }

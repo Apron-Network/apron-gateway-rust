@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }) => {
                 println!("Proxy request received is {:?}", info.clone().request_id);
                 // swarm.behaviour_mut().request_response.send_request()
-                data_sender.send(Vec::from("Hello What"));
+                data_sender.send(Vec::from("Hello What")).await;
             }
             _ => {}
         }
