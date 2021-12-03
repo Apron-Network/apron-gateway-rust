@@ -8,17 +8,20 @@ use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
 use awc::BoxedSocket;
 use awc::Client;
+use futures::channel::mpsc::Receiver;
 use futures::executor::block_on;
 use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use libp2p::PeerId;
 use log::{debug, error, info};
+use serde::de::Unexpected::Str;
+use serde_json::Value::String;
 
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
 use crate::mpsc::Sender;
 use crate::network::Command;
-use crate::SharedHandler;
+use crate::{HttpProxyResponse, SharedHandler};
 
 // Service side actor
 pub(crate) struct ServiceSideWsActor {
@@ -63,6 +66,7 @@ pub(crate) struct ClientSideWsActor {
     pub(crate) req_info: ProxyRequestInfo,
     pub(crate) remote_peer_id: PeerId,
     pub(crate) p2p_handler: Data<SharedHandler>,
+    pub(crate) resp_receiver: Receiver<HttpProxyResponse>,
 }
 
 impl Actor for ClientSideWsActor {
@@ -78,6 +82,21 @@ impl Actor for ClientSideWsActor {
         }));
 
         // TODO: Start mpsc::channel to get data from ProxyData command handler
+        Arbiter::spawn(async move {
+            loop {
+                match self.resp_receiver.next().await {
+                    Some(HttpProxyResponse {
+                        request_id,
+                        status_code,
+                        headers,
+                        body,
+                    }) => {
+                        println!("Proxy response received is {:?}", body);
+                    }
+                    _ => {}
+                }
+            }
+        });
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
