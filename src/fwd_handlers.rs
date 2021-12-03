@@ -123,19 +123,6 @@ pub(crate) async fn forward_ws_proxy_request(
         request_id_client_session_mapping.as_ref()
     );
 
-    Arbiter::spawn(async move {
-        match resp_receiver.next().await {
-            Some(HttpProxyResponse {
-                request_id,
-                status_code,
-                headers,
-                body,
-            }) => {
-                println!("Proxy response received is {:?}", request_id);
-            }
-            _ => {}
-        }
-    });
 
     // Create websocket session between ClientSideGateway and Client
     ws::start(
@@ -143,6 +130,7 @@ pub(crate) async fn forward_ws_proxy_request(
             req_info,
             remote_peer_id,
             p2p_handler,
+            resp_receiver,
         },
         &req,
         stream,
