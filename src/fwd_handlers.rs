@@ -1,22 +1,24 @@
 use std::collections::HashMap;
 
+use actix::Arbiter;
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{Receiver, Sender};
+use futures::prelude::stream::Next;
 use futures::{SinkExt, StreamExt};
-use log::{debug, info, warn, error};
+use log::{debug, error, info, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use uuid::Bytes;
 
 use crate::forward_service_actors::ClientSideWsActor;
 use crate::forward_service_models::{HttpProxyResponse, ProxyRequestInfo};
-use crate::helpers;
 use crate::network::Command;
 use crate::state::{set, AppState};
 use crate::{forward_service_actors, forward_service_utils::parse_request, PeerId, SharedHandler};
+use crate::{helpers, network};
 
 fn prepare_for_sending_p2p_transaction(
     query_args: web::Query<HashMap<String, String>>,
@@ -105,7 +107,7 @@ pub(crate) async fn forward_ws_proxy_request(
     info!("ClientSideGateway: Req info: {:?}", req_info);
     info!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
-    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
+    let (resp_sender, mut resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
         mpsc::channel(0);
 
     // Save mapping between request_id and response sender,
@@ -120,6 +122,20 @@ pub(crate) async fn forward_ws_proxy_request(
         "ClientSideGateway: Fwd req id mapping: {:?}",
         request_id_client_session_mapping.as_ref()
     );
+
+    Arbiter::spawn(async move {
+        match resp_receiver.next().await {
+            Some(HttpProxyResponse {
+                request_id,
+                status_code,
+                headers,
+                body,
+            }) => {
+                println!("Proxy response received is {:?}", request_id);
+            }
+            _ => {}
+        }
+    });
 
     // Create websocket session between ClientSideGateway and Client
     ws::start(
