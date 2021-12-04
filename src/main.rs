@@ -170,7 +170,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
 
-    // Websocket connect loop
+    // Websocket connect loop, which handles those actions:
+    // * receives message sent from network event handler,
+    // * processes websocket connection
+    // * forward message to network handler with data_sender
     Arbiter::spawn(async move {
         match event_receiver.next().await {
             Some(network::Event::ProxyRequestToMainLoop {
