@@ -123,18 +123,15 @@ pub(crate) async fn forward_ws_proxy_request(
         request_id_client_session_mapping.as_ref()
     );
 
-
     // Create websocket session between ClientSideGateway and Client
-    ws::start(
-        ClientSideWsActor {
-            req_info,
-            remote_peer_id,
-            p2p_handler,
-            resp_receiver,
-        },
-        &req,
-        stream,
-    )
+    let client_ws_actor = ClientSideWsActor {
+        req_info,
+        remote_peer_id,
+        p2p_handler,
+        resp_receiver,
+    };
+    // TODO: Verify whether it is possible to add function to set actor in, and check whether it can pass lifetime check
+    ws::start(client_ws_actor, &req, stream)
 
     // let proxy_resp = resp_receiver.recv().unwrap();
     //
