@@ -76,12 +76,12 @@ impl Actor for ClientSideWsActor {
         info!("ClientSideGateway: Started to receive message...");
         let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
 
+        // Block until connect request sent to ServiceSideGateway
         block_on(command_sender.send(Command::SendRequest {
             peer: self.remote_peer_id,
             data: bincode::serialize(&self.req_info).unwrap(),
         }));
 
-        // TODO: Start mpsc::channel to get data from ProxyData command handler
         Arbiter::spawn(async move {
             loop {
                 match self.resp_receiver.next().await {
@@ -135,43 +135,4 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
             _ => (),
         }
     }
-}
-
-// Handler for message sent from client side
-impl Handler<ProxyData> for ClientSideWsActor {
-    type Result = ();
-
-    fn handle(&mut self, msg: ProxyData, ctx: &mut Self::Context) {
-        println!("Message: {:?}", msg);
-        ctx.binary(msg.data);
-    }
-}
-
-async fn connect_to_service(
-    service_uri: &str,
-    addr: Addr<ClientSideWsActor>,
-) -> Addr<ServiceSideWsActor> {
-    let (resp, framed) = Client::new()
-        .ws(service_uri.parse::<Uri>().unwrap())
-        .connect()
-        .await
-        .unwrap();
-
-    println!("Resp: {:?}", resp);
-
-    let (sink, stream) = framed.split();
-    ServiceSideWsActor::create(|ctx| {
-        ServiceSideWsActor::add_stream(stream, ctx);
-        ServiceSideWsActor {
-            writer: SinkWrite::new(sink, ctx),
-            addr: addr,
-        }
-    })
-
-    // ws_client_handler::WsClientToService::create(|ctx| {
-    //     ws_client_handler::WsClientToService::add_stream(stream, ctx);
-    //     ws_client_handler::WsClientToService(SinkWrite::new(sink, ctx))
-    // })
-
-    // addr.do_send(ws_client_handler::TestWsMsg("foobar".to_owned()));
 }
