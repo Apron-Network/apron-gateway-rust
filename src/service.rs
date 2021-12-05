@@ -1,6 +1,6 @@
 use crate::helpers::respond_json;
 use crate::network::{Command, Event};
-use crate::state::{all, set, AppState};
+use crate::state::{self, all, delete, get, AppState};
 use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
 use futures::channel::{mpsc, oneshot};
@@ -63,7 +63,7 @@ pub async fn create_service(
     let mut new_service2 = new_service.clone();
     new_service2.peer_id = local_peer_id.clone().to_base58();
 
-    set(data, key, new_service);
+    state::set(data, key, new_service);
 
     // publish data to the whole p2p network
     let mut command_sender = p2p_handler.command_sender.lock().unwrap();
@@ -81,6 +81,38 @@ pub async fn create_service(
     );
 
     respond_json(new_service2)
+}
+
+/// Delete a service with data-raw.
+pub async fn delete_service(
+    info: Json<ApronService>,
+    data: AppState<ApronService>,
+    p2p_handler: Data<SharedHandler>,
+) -> HttpResponse {
+    let key = info.id.clone();
+    let service = state::delete(data, key.clone());
+    match service {
+        Some(service) => {
+            let mut new_service = service.clone();
+            new_service.is_deleted = true;
+
+            // state::delete(data.clone(), key.clone());
+            println!("[mgmt] delete service: {}", key);
+
+            // publish data to the whole p2p network
+            let mut command_sender = p2p_handler.command_sender.lock().unwrap();
+            let message = serde_json::to_string(&new_service).unwrap();
+            command_sender
+                .send(Command::PublishGossip {
+                    data: message.into_bytes(),
+                })
+                .await
+                .unwrap();
+
+            HttpResponse::Ok().body("")
+        }
+        None => HttpResponse::NotFound().body(""),
+    }
 }
 
 /// Get All services
