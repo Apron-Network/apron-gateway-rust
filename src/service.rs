@@ -111,7 +111,7 @@ pub struct SharedHandler {
 }
 
 /// Create a service with data-raw.
-pub async fn create_service(
+pub async fn new_update_service(
     info: Json<ApronService>,
     data: AppState<ApronService>,
     p2p_handler: Data<SharedHandler>,
