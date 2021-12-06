@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use actix::io::SinkWrite;
 use actix::*;
 use actix_codec::Framed;
@@ -23,10 +25,9 @@ use crate::mpsc::Sender;
 use crate::network::Command;
 use crate::{HttpProxyResponse, SharedHandler};
 
-// Service side actor
+// Service side actor, connect to ws service and proxy data between libp2p stream and service
 pub(crate) struct ServiceSideWsActor {
     pub(crate) writer: SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>,
-    pub(crate) addr: Addr<ClientSideWsActor>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -38,12 +39,8 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
     fn handle(&mut self, msg: Result<Frame, WsProtocolError>, ctx: &mut Self::Context) {
         info!("Received service side message: {:?}", msg);
         // TODO: Send message back to client ws session
-        if let Ok(Frame::Text(txt)) = msg {
-            let proxy_msg = ProxyData {
-                channel_id: "".to_string(),
-                data: txt.to_vec(),
-            };
-            self.addr.do_send(proxy_msg);
+        if let Ok(Frame::Text(text_msg)) = msg {
+            println!("ServiceSideGateWay: Receive message: {:?}", text_msg);
         }
 
         ()
@@ -61,12 +58,11 @@ impl Handler<TestWsMsg> for ServiceSideWsActor {
 
 impl actix::io::WriteHandler<WsProtocolError> for ServiceSideWsActor {}
 
-// Client side actor
+// Client side actor, receive message from client side and pass to service side gw with libp2p stream
 pub(crate) struct ClientSideWsActor {
     pub(crate) req_info: ProxyRequestInfo,
     pub(crate) remote_peer_id: PeerId,
     pub(crate) p2p_handler: Data<SharedHandler>,
-    pub(crate) resp_receiver: Receiver<HttpProxyResponse>,
 }
 
 impl Actor for ClientSideWsActor {
@@ -82,21 +78,19 @@ impl Actor for ClientSideWsActor {
             data: bincode::serialize(&self.req_info).unwrap(),
         }));
 
-        Arbiter::spawn(async move {
-            loop {
-                match self.resp_receiver.next().await {
-                    Some(HttpProxyResponse {
-                        request_id,
-                        status_code,
-                        headers,
-                        body,
-                    }) => {
-                        println!("Proxy response received is {:?}", body);
-                    }
-                    _ => {}
-                }
-            }
-        });
+        // loop {
+        //     match resp_handler.next().await {
+        //         Some(HttpProxyResponse {
+        //             request_id,
+        //             status_code,
+        //             headers,
+        //             body,
+        //         }) => {
+        //             println!("Proxy response received is {:?}", body);
+        //         }
+        //         _ => {}
+        //     }
+        // }
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -115,22 +109,24 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
                 // ctx.binary(bin)
             }
             Ok(ws::Message::Text(text)) => {
-                // TODO: Build ProxyData and send to client
-                // let msg = ProxyData {
-                //     channel_id: "".to_string(),
-                //     data: Vec::from(text),
-                // };
                 info!("Msg: {:?}", text);
+
+                let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
+
+                // Send ProxyRequestInfo to service side gateway via stream
+                block_on(
+                    command_sender.send(Command::SendRequest {
+                        peer: self.remote_peer_id,
+                        data: bincode::serialize(&ProxyData {
+                            channel_id: "".to_string(),
+                            data: text.clone().into_bytes(),
+                        })
+                        .unwrap(),
+                    }),
+                );
+
+                // DEBUG
                 ctx.text(text);
-                // TODO: Forward message to service ws client
-                // match &self.addr {
-                //     None => {
-                //         error!("Addr not set");
-                //     }
-                //     Some(addr) => {
-                //         addr.do_send(TestWsMsg(text));
-                //     }
-                // }
             }
             _ => (),
         }
