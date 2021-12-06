@@ -10,24 +10,24 @@ use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
 use awc::BoxedSocket;
 use awc::Client;
-use futures::channel::mpsc::Receiver;
+use futures::channel::mpsc::{Receiver, Sender};
 use futures::executor::block_on;
 use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
+use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use libp2p::PeerId;
 use log::{debug, error, info};
 use serde::de::Unexpected::Str;
 use serde_json::Value::String;
 
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
-use crate::mpsc::Sender;
 use crate::network::Command;
 use crate::{HttpProxyResponse, SharedHandler};
 
 // Service side actor, connect to ws service and proxy data between libp2p stream and service
 pub(crate) struct ServiceSideWsActor {
     pub(crate) writer: SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>,
+    pub(crate) data_sender: Sender<Vec<u8>>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -38,9 +38,14 @@ impl Actor for ServiceSideWsActor {
 impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
     fn handle(&mut self, msg: Result<Frame, WsProtocolError>, ctx: &mut Self::Context) {
         info!("Received service side message: {:?}", msg);
-        // TODO: Send message back to client ws session
+
         if let Ok(Frame::Text(text_msg)) = msg {
-            println!("ServiceSideGateWay: Receive message: {:?}", text_msg);
+            block_on(self.data_sender.send(text_msg.to_vec()).map(move |_| {
+                info!(
+                    "ServiceSideGateWay: Sent received message to ClientSideGateway: {:?}",
+                    text_msg
+                )
+            }));
         }
 
         ()

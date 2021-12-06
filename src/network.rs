@@ -20,6 +20,7 @@ use libp2p::request_response::{
 };
 use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
+use log::{info, warn};
 use url::Url;
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
@@ -87,7 +88,9 @@ pub enum Event {
         data_sender: mpsc::Sender<Vec<u8>>,
     },
 
-    ProxyData { data: ProxyData },
+    ProxyData {
+        data: ProxyData,
+    },
 }
 
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
@@ -236,7 +239,7 @@ pub async fn network_event_loop(
                         }
 
                         RequestResponseMessage::Response { request_id, response, } => {
-                            println!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
+                            info!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
                             let resp: HttpProxyResponse = bincode::deserialize(&response.0).unwrap();
                             println!(
                                 "receive request {:?} Ack from {:?}: {:?}",
@@ -303,17 +306,17 @@ pub async fn network_event_loop(
                 match command {
                     Some(c) => match c {
                         Command::PublishGossip { data } => {
-                            println!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
+                            info!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
                         }
                         Command::Dial { peer, peer_addr} => {
-                            println!("[libp2p] Dial to peer: {}, peer_addr: {:?}", peer.to_string(), peer_addr);
+                            info!("[libp2p] Dial to peer: {}, peer_addr: {:?}", peer.to_string(), peer_addr);
                         //    swarm.dial_addr(peer_addr.with(Protocol::P2p(peer.into())));
                         }
                         Command::SendRequest { peer, data } => {
-                            println!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
+                            info!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
-                            println!("libp2p Request id of SendRequest command is: {:?}", request_id);
+                            info!("libp2p Request id of SendRequest command is: {:?}", request_id);
                         }
                         Command::SendResponse { data, channel} => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));

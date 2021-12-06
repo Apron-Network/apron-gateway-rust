@@ -12,6 +12,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use libp2p::gossipsub::Topic;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
+use log::info;
 use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
@@ -149,10 +150,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 info,
                 mut data_sender,
             }) => {
-                println!("Proxy request received is {:?}", info.clone().request_id);
+                info!(
+                    "ServiceSideGateway: Proxy request received is {:?}",
+                    info.clone().request_id
+                );
                 // TODO: Get ws url from saved service info
-                connect_to_ws_service("ws://localhost:10000").await;
-                data_sender.send(Vec::from("Hello What")).await;
+                connect_to_ws_service("ws://localhost:10000", data_sender).await;
+                // data_sender.send(Vec::from("Hello What")).await;
             }
             _ => {}
         }
