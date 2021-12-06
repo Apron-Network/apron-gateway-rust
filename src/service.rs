@@ -125,6 +125,22 @@ pub async fn new_update_service(
     if service.is_some() {
         let mut service = service.unwrap();
         service.update(new_service);
+        state::set(data, key.clone(), service.clone());
+
+        // publish data to the whole p2p network
+        let mut command_sender = p2p_handler.command_sender.lock().unwrap();
+        let message = serde_json::to_string(&service).unwrap();
+        command_sender
+            .send(Command::PublishGossip {
+                data: message.into_bytes(),
+            })
+            .await
+            .unwrap();
+
+        println!(
+            "[mgmt] update service: {}",
+            serde_json::to_string(&service).unwrap()
+        );
         respond_json(service)
     } else {
         new_service.peer_id = Some(local_peer_id.clone().to_base58());
@@ -190,9 +206,9 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
     let hdata = all(data).unwrap();
 
     // for debug
-    for (key, value) in &hdata {
-        println!("{}: {}", key, value.id);
-    }
+    // for (key, value) in &hdata {
+    //     println!("{}: {}", key, value.id);
+    // }
     HttpResponse::Ok().body(serde_json::to_string(&hdata).unwrap())
 }
 
