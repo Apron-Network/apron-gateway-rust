@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
@@ -130,7 +131,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
 
     let mgmt_service = HttpServer::new(move || {
+        let cors = Cors::permissive();
         App::new()
+            .wrap(cors)
             .app_data(data.clone())
             .app_data(p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
