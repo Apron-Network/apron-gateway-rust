@@ -210,7 +210,7 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
     // for (key, value) in &hdata {
     //     println!("{}: {}", key, value.id);
     // }
-    HttpResponse::Ok().body(serde_json::to_string(&hdata).unwrap())
+    HttpResponse::Ok().json(hdata)
 }
 
 pub async fn list_local_services(
@@ -227,7 +227,8 @@ pub async fn list_local_services(
             response.push(value.clone());
         }
     }
-    HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    // HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    HttpResponse::Ok().json(response)
 }
 
 pub async fn list_remote_services(
@@ -244,7 +245,8 @@ pub async fn list_remote_services(
             response.push(value.clone());
         }
     }
-    HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    // HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    HttpResponse::Ok().json(response)
 }
 
 pub async fn list_service_peers(data: AppState<ApronService>) -> HttpResponse {
@@ -254,5 +256,6 @@ pub async fn list_service_peers(data: AppState<ApronService>) -> HttpResponse {
     for value in hdata.values() {
         response.insert(value.peer_id.clone());
     }
-    HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    // HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    HttpResponse::Ok().json(response)
 }
