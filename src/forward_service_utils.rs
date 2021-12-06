@@ -1,24 +1,25 @@
+use actix::io::SinkWrite;
+use actix::{Actor, StreamHandler};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
-use actix::{Actor, StreamHandler};
-use actix::io::SinkWrite;
 
 use actix_web::web::head;
 use actix_web::{web, HttpRequest};
 use actix_web_actors::ws;
 use awc::http::{HeaderName, Uri};
 use awc::{Client, ClientRequest};
+use futures::channel::mpsc::Sender;
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::header::HeaderMap;
 use url::Url;
 
-use crate::forward_service_models::ProxyRequestInfo;
-use crate::{forward_service_actors, HttpProxyResponse};
 use crate::forward_service_actors::ServiceSideWsActor;
+use crate::forward_service_models::ProxyRequestInfo;
 use crate::stream::StreamExt;
+use crate::{forward_service_actors, HttpProxyResponse};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -133,20 +134,21 @@ pub fn send_http_request_blocking(
 }
 
 // Function connects to websocket service, should only be invoked in service side gateway.
-pub async fn connect_to_ws_service(service_uri: &str) {
+pub async fn connect_to_ws_service(service_uri: &str, data_sender: Sender<Vec<u8>>) {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
         .connect()
         .await
         .unwrap();
 
-    println!("Resp: {:?}", resp);
+    info!("ServiceSideGateway: Resp: {:?}", resp);
 
     let (sink, stream) = framed.split();
     ServiceSideWsActor::create(|ctx| {
         ServiceSideWsActor::add_stream(stream, ctx);
         ServiceSideWsActor {
             writer: SinkWrite::new(sink, ctx),
+            data_sender,
         }
     });
 }
