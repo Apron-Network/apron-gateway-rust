@@ -36,10 +36,20 @@ pub struct ApronService {
     pub providers: Option<Vec<ApronServiceProvider>>,
 
     pub is_deleted: Option<bool>,
+
+    pub price_plan: Option<String>,
+
+    pub user_id: Option<String>,
 }
 
 impl ApronService {
     pub fn update(&mut self, other: ApronService) {
+        if other.price_plan.is_some() {
+            self.price_plan = other.price_plan;
+        }
+        if other.user_id.is_some() {
+            self.user_id = other.user_id;
+        }
         if other.peer_id.is_some() {
             self.peer_id = other.peer_id;
         }
