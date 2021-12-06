@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
+use actix::{Actor, StreamHandler};
+use actix::io::SinkWrite;
 
 use actix_web::web::head;
 use actix_web::{web, HttpRequest};
 use actix_web_actors::ws;
-use awc::http::HeaderName;
-use awc::ClientRequest;
+use awc::http::{HeaderName, Uri};
+use awc::{Client, ClientRequest};
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -15,6 +17,8 @@ use url::Url;
 
 use crate::forward_service_models::ProxyRequestInfo;
 use crate::{forward_service_actors, HttpProxyResponse};
+use crate::forward_service_actors::ServiceSideWsActor;
+use crate::stream::StreamExt;
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -129,15 +133,20 @@ pub fn send_http_request_blocking(
 }
 
 // Function connects to websocket service, should only be invoked in service side gateway.
-// pub fn connect_to_ws_service() {
-//     let resp = ws::start(
-//         forward_service_actors::ClientSideWsActor {
-//             service_uri: "ws://localhost:10000",
-//             addr: None,
-//         },
-//         &req,
-//         stream,
-//     );
-//     println!("Resp: {:?}", resp);
-//     resp
-// }
+pub async fn connect_to_ws_service(service_uri: &str) {
+    let (resp, framed) = Client::new()
+        .ws(service_uri.parse::<Uri>().unwrap())
+        .connect()
+        .await
+        .unwrap();
+
+    println!("Resp: {:?}", resp);
+
+    let (sink, stream) = framed.split();
+    ServiceSideWsActor::create(|ctx| {
+        ServiceSideWsActor::add_stream(stream, ctx);
+        ServiceSideWsActor {
+            writer: SinkWrite::new(sink, ctx),
+        }
+    });
+}

@@ -17,7 +17,7 @@ use structopt::StructOpt;
 
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
-use crate::forward_service_utils::send_http_request_blocking;
+use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
 use crate::network::{Event, FileRequest};
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
@@ -150,7 +150,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 mut data_sender,
             }) => {
                 println!("Proxy request received is {:?}", info.clone().request_id);
-                // swarm.behaviour_mut().request_response.send_request()
+                // TODO: Get ws url from saved service info
+                connect_to_ws_service("ws://localhost:10000").await;
                 data_sender.send(Vec::from("Hello What")).await;
             }
             _ => {}

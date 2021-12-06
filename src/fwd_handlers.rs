@@ -128,7 +128,6 @@ pub(crate) async fn forward_ws_proxy_request(
         req_info,
         remote_peer_id,
         p2p_handler,
-        resp_receiver,
     };
     // TODO: Verify whether it is possible to add function to set actor in, and check whether it can pass lifetime check
     ws::start(client_ws_actor, &req, stream)
