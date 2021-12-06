@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
 
+use bincode;
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
@@ -20,7 +21,8 @@ use libp2p::request_response::{
 };
 use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
-use log::{info, warn};
+use log::{error, info, warn};
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
@@ -39,13 +41,13 @@ pub struct ComposedBehaviour {
 
 #[derive(Debug)]
 pub enum ComposedEvent {
-    RequestResponse(RequestResponseEvent<FileRequest, FileResponse>),
+    RequestResponse(RequestResponseEvent<DataExchangeRequest, FileResponse>),
     Gossipsub(GossipsubEvent),
     Kademlia(KademliaEvent),
 }
 
-impl From<RequestResponseEvent<FileRequest, FileResponse>> for ComposedEvent {
-    fn from(event: RequestResponseEvent<FileRequest, FileResponse>) -> Self {
+impl From<RequestResponseEvent<DataExchangeRequest, FileResponse>> for ComposedEvent {
+    fn from(event: RequestResponseEvent<DataExchangeRequest, FileResponse>) -> Self {
         ComposedEvent::RequestResponse(event)
     }
 }
@@ -74,6 +76,11 @@ pub enum Command {
     SendResponse {
         data: Vec<u8>,
         channel: ResponseChannel<FileResponse>,
+    },
+
+    SendProxyData {
+        peer: PeerId,
+        data: Vec<u8>,
     },
 
     Dial {
@@ -226,48 +233,57 @@ pub async fn network_event_loop(
                             println!("[libp2p] receive request message: {:?}, channel: {:?}", request, channel);
                             println!("Request from Peer id {:?}", peer);
 
-                            // get data from request. Currently only for http.
-                            let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.0).unwrap();
-                            println!("ProxyRequestInfo is {:?}", proxy_request_info);
+                            match request.schema {
+                                0 => {
+                                    let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.data).unwrap();
+                                    println!("ProxyRequestInfo is {:?}", proxy_request_info);
 
-                            let client_side_req_id = proxy_request_info.clone().request_id;
+                                    let client_side_req_id = proxy_request_info.clone().request_id;
 
-                            if (proxy_request_info.clone().is_websocket) {
-                                // Running on service side gateway, after receiving websocket request,
-                                // forward the request directly to main loop since the event handler
-                                // can't process async tasks well.
-                                println!("Forwarding ws request to main loop");
-                                let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
-                                event_sender.send(Event::ProxyRequestToMainLoop{
-                                    info: proxy_request_info.clone(),
-                                    data_sender: ws_data_sender,
-                                }).await.expect("Event receiver not to be dropped.");
+                                    if (proxy_request_info.clone().is_websocket) {
+                                        // Running on service side gateway, after receiving websocket request,
+                                        // forward the request directly to main loop since the event handler
+                                        // can't process async tasks well.
+                                        println!("Forwarding ws request to main loop");
+                                        let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
+                                        event_sender.send(Event::ProxyRequestToMainLoop{
+                                            info: proxy_request_info.clone(),
+                                            data_sender: ws_data_sender,
+                                        }).await.expect("Event receiver not to be dropped.");
 
-                                match ws_data_receiver.next().await {
-                                    Some(data) => {
-                                        println!("Proxy data received from main loop is {:?}", data);
-                                        let resp = HttpProxyResponse{
-                                            request_id: proxy_request_info.request_id,
-                                            status_code: 200,
-                                            headers: HashMap::new(),
-                                            body: data,
-                                        };
+                                        match ws_data_receiver.next().await {
+                                            Some(data) => {
+                                                println!("Proxy data received from main loop is {:?}", data);
+                                                let resp = HttpProxyResponse{
+                                                    request_id: proxy_request_info.request_id,
+                                                    status_code: 200,
+                                                    headers: HashMap::new(),
+                                                    body: data,
+                                                };
+                                                swarm.behaviour_mut()
+                                                        .request_response
+                                                        .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
+                                            }
+                                            _ => {}
+                                        }
+                                    } else {
+                                        // TODO: Replace this hard coded base to value fetched from service
+                                        let tmp_base = "http://localhost:8923/anything";
+                                        let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+
+                                        // Send resp to client side gateway
                                         swarm.behaviour_mut()
                                                 .request_response
                                                 .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
                                     }
-                                    _ => {}
                                 }
-                            } else {
-                                // TODO: Replace this hard coded base to value fetched from service
-                                let tmp_base = "http://localhost:8923/anything";
-                                let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+                                1 => {
+                                    let proxy_data: ProxyData = bincode::deserialize(&request.data).unwrap();
+                                    info!("Received proxy data request: {:?}", proxy_data);
+                                }
+                                _ => { error!("Unknown data schema: {:?}", request.schema)}
+                                }
 
-                                // Send resp to client side gateway
-                                swarm.behaviour_mut()
-                                        .request_response
-                                        .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
-                            }
                         }
 
                         RequestResponseMessage::Response { request_id, response, } => {
@@ -280,10 +296,9 @@ pub async fn network_event_loop(
                                 resp
                             );
 
-                            println!("================ send response back");
-
-                            let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
-                            sender.send(resp).await.expect("Event receiver not to be dropped.");
+                            info!("Send response back to client");
+                            // let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                            // sender.send(resp).await.expect("Event receiver not to be dropped.");
                         }
                     }
 
@@ -347,8 +362,11 @@ pub async fn network_event_loop(
                         }
                         Command::SendRequest { peer, data } => {
                             info!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
-                            let request_id = swarm.behaviour_mut().request_response.send_request(&peer, FileRequest(data));
-                            info!("libp2p Request id of SendRequest command is: {:?}", request_id);
+                            swarm.behaviour_mut().request_response.send_request(&peer, DataExchangeRequest{schema: 0, data});
+                        }
+                        Command::SendProxyData { peer, data } => {
+                            info!("[libp2p] Send proxy data to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
+                            swarm.behaviour_mut().request_response.send_request(&peer, DataExchangeRequest{schema: 1, data});
                         }
                         Command::SendResponse { data, channel} => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
@@ -402,12 +420,12 @@ pub struct DataExchangeProtocol();
 #[derive(Clone)]
 pub struct DataExchangeCodec();
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-// struct FileRequest {
-//     schema: String,
-//     data: String,
-// }
-pub struct FileRequest(pub(crate) Vec<u8>);
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct DataExchangeRequest {
+    pub(crate) schema: u8,  // 0 for InitRequest, 1 for Data
+    pub(crate) data: Vec<u8>,
+}
+// pub struct DataExchangeRequest(pub(crate) Vec<u8>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileResponse(pub(crate) Vec<u8>);
@@ -426,7 +444,7 @@ impl ProtocolName for DataExchangeProtocol {
 #[async_trait]
 impl RequestResponseCodec for DataExchangeCodec {
     type Protocol = DataExchangeProtocol;
-    type Request = FileRequest;
+    type Request = DataExchangeRequest;
     type Response = FileResponse;
 
     async fn read_request<T>(
@@ -437,14 +455,17 @@ impl RequestResponseCodec for DataExchangeCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        let vec = read_length_prefixed(io, 1_000_000).await?;
+        let schema_fields = read_length_prefixed(io, 1).await?;
+        let data = read_length_prefixed(io, 1_000_000).await?;
 
-        if vec.is_empty() {
+        if schema_fields.is_empty() || data.is_empty() {
             return Err(io::ErrorKind::UnexpectedEof.into());
         }
 
-        Ok(FileRequest(vec))
-        // Ok(FileRequest(String::from_utf8(vec).unwrap()))
+        Ok(DataExchangeRequest {
+            schema: schema_fields[0],
+            data,
+        })
     }
 
     async fn read_response<T>(
@@ -469,11 +490,12 @@ impl RequestResponseCodec for DataExchangeCodec {
         &mut self,
         _: &DataExchangeProtocol,
         io: &mut T,
-        FileRequest(data): FileRequest,
+        DataExchangeRequest { schema, data }: DataExchangeRequest,
     ) -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,
     {
+        write_length_prefixed(io, [schema]).await?;
         write_length_prefixed(io, data).await?;
         io.close().await?;
 

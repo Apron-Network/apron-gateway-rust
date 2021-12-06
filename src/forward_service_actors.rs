@@ -120,7 +120,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
 
                 // Send ProxyRequestInfo to service side gateway via stream
                 block_on(
-                    command_sender.send(Command::SendRequest {
+                    command_sender.send(Command::SendProxyData {
                         peer: self.remote_peer_id,
                         data: bincode::serialize(&ProxyData {
                             channel_id: "".to_string(),
