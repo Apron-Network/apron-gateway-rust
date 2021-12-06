@@ -1,6 +1,6 @@
 use crate::helpers::respond_json;
 use crate::network::{Command, Event};
-use crate::state::{self, all, delete, get, AppState};
+use crate::state::{self, all, delete, get, values, AppState};
 use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
 use futures::channel::{mpsc, oneshot};
@@ -204,7 +204,7 @@ pub async fn delete_service(
 /// Get All services
 pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
     println!("[mgmt]: List All Available Service");
-    let hdata = all(data).unwrap();
+    let hdata = values(data).unwrap();
 
     // for debug
     // for (key, value) in &hdata {
