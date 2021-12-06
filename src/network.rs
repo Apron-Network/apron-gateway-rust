@@ -26,7 +26,7 @@ use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestIn
 use crate::forward_service_utils::send_http_request_blocking;
 use crate::helpers;
 use crate::service::ApronService;
-use crate::state::{get, set, AppState};
+use crate::state::{delete, get, set, AppState};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -87,7 +87,9 @@ pub enum Event {
         data_sender: mpsc::Sender<Vec<u8>>,
     },
 
-    ProxyData { data: ProxyData },
+    ProxyData {
+        data: ProxyData,
+    },
 }
 
 pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>, Box<dyn Error>> {
@@ -177,11 +179,34 @@ pub async fn network_event_loop(
                         message,
                     })) => {
                         // update local http gateway data.
+                        println!("[libp2p] Recevie new message from remote: {}", peer_id);
                         let value = String::from_utf8_lossy(&message.data).to_string();
                         let new_service: ApronService = serde_json::from_str(&value).unwrap();
                         let key = new_service.id.clone();
-                        set(share_data, key.clone(), new_service);
-                        // set(share_service_peer_mapping, key, peer_id);
+                        let service = get(share_data.clone(), key.clone());
+                        match service {
+                            Some(_service) => {
+                                match new_service.is_deleted {
+                                    Some(is_deleted) => {
+                                        if is_deleted {
+                                            println!("[libp2p] Recevie new message to delete service: {}", key.clone());
+                                            delete(share_data, key.clone());
+                                        }else{
+                                            println!("[libp2p] Recevie new message to update service: {}", key.clone());
+                                            set(share_data, key.clone(), new_service);
+                                        }
+                                    }
+                                    None => {
+                                        println!("[libp2p] Recevie new message to update service: {}", key.clone());
+                                        set(share_data, key.clone(), new_service);
+                                    }
+                                }
+                            }
+                            None => {
+                                println!("[libp2p] Recevie new message to add new service: {}", key.clone());
+                                set(share_data, key.clone(), new_service);
+                            }
+                        }
                     }
 
                     SwarmEvent::Behaviour(ComposedEvent::RequestResponse(

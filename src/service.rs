@@ -203,6 +203,7 @@ pub async fn delete_service(
 
 /// Get All services
 pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
+    println!("[mgmt]: List All Available Service");
     let hdata = all(data).unwrap();
 
     // for debug
