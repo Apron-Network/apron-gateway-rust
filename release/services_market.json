@@ -1,0 +1,1384 @@
+{
+  "source": {
+    "hash": "0x58a6e529c4ccad5aa1acccb4bdef7cdc4c5c081d44ff3dae9d49832d40064a02",
+    "language": "ink! 3.0.0-rc6",
+    "compiler": "rustc 1.58.0-nightly"
+  },
+  "contract": {
+    "name": "services_market",
+    "version": "0.1.0",
+    "authors": [
+      "[your_name] <[your_email]>"
+    ]
+  },
+  "V1": {
+    "spec": {
+      "constructors": [
+        {
+          "args": [
+            {
+              "name": "controller",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            }
+          ],
+          "docs": [
+            "Constructor that initializes the `bool` value to the given `init_value`."
+          ],
+          "name": [
+            "new"
+          ],
+          "selector": "0x9bae9d5e"
+        }
+      ],
+      "docs": [],
+      "events": [
+        {
+          "args": [
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "service_id",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "provider_owner",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "create_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [],
+          "name": "AddServiceEvent"
+        },
+        {
+          "args": [
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "service_id",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "provider_owner",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "create_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [],
+          "name": "UpdateServiceEvent"
+        }
+      ],
+      "messages": [
+        {
+          "args": [
+            {
+              "name": "provider_id",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            }
+          ],
+          "docs": [],
+          "mutates": true,
+          "name": [
+            "allowed_provider"
+          ],
+          "payable": false,
+          "returnType": null,
+          "selector": "0x02640955"
+        },
+        {
+          "args": [
+            {
+              "name": "provider_id",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            }
+          ],
+          "docs": [],
+          "mutates": true,
+          "name": [
+            "remove_allowed_provider"
+          ],
+          "payable": false,
+          "returnType": null,
+          "selector": "0x113c7aa6"
+        },
+        {
+          "args": [],
+          "docs": [],
+          "mutates": true,
+          "name": [
+            "query_allowed_providers"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Vec"
+            ],
+            "type": 18
+          },
+          "selector": "0xb9fbba1d"
+        },
+        {
+          "args": [
+            {
+              "name": "uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "name",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "desc",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "logo",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "create_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "name": "provider_name",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "provider_owner",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "name": "usage",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "schema",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "price_plan",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            },
+            {
+              "name": "declaimer",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            }
+          ],
+          "docs": [
+            " A message that init a service."
+          ],
+          "mutates": true,
+          "name": [
+            "add_service"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "bool"
+            ],
+            "type": 17
+          },
+          "selector": "0x17defac4"
+        },
+        {
+          "args": [
+            {
+              "name": "index",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [
+            " query service by index"
+          ],
+          "mutates": false,
+          "name": [
+            "query_service_by_index"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Service"
+            ],
+            "type": 9
+          },
+          "selector": "0x9f02843f"
+        },
+        {
+          "args": [
+            {
+              "name": "uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 10
+              }
+            }
+          ],
+          "docs": [
+            " query service by uuid"
+          ],
+          "mutates": false,
+          "name": [
+            "query_service_by_uuid"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Service"
+            ],
+            "type": 9
+          },
+          "selector": "0x8fcff46e"
+        },
+        {
+          "args": [],
+          "docs": [
+            " query services"
+          ],
+          "mutates": false,
+          "name": [
+            "list_services"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Vec"
+            ],
+            "type": 19
+          },
+          "selector": "0xa3f5f5be"
+        },
+        {
+          "args": [
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 20
+              }
+            }
+          ],
+          "docs": [],
+          "mutates": false,
+          "name": [
+            "list_services_by_page"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 21
+          },
+          "selector": "0x23fda8ea"
+        },
+        {
+          "args": [
+            {
+              "name": "provider",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 20
+              }
+            }
+          ],
+          "docs": [
+            " query services"
+          ],
+          "mutates": false,
+          "name": [
+            "list_services_provider"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 21
+          },
+          "selector": "0x937686fe"
+        }
+      ]
+    },
+    "storage": {
+      "struct": {
+        "fields": [
+          {
+            "layout": {
+              "cell": {
+                "key": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "ty": 0
+              }
+            },
+            "name": "owner"
+          },
+          {
+            "layout": {
+              "cell": {
+                "key": "0x0100000000000000000000000000000000000000000000000000000000000000",
+                "ty": 3
+              }
+            },
+            "name": "services_index"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0300000000000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0300000001000000000000000000000000000000000000000000000000000000",
+                                            "ty": 6
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0400000000000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                            "ty": 8
+                          }
+                        },
+                        "offset": "0x0300000001000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
+                                            "ty": 11
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0600000001000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                            "ty": 12
+                          }
+                        },
+                        "offset": "0x0500000002000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map_by_uuid"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0700000003000000000000000000000000000000000000000000000000000000",
+                                            "ty": 13
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0800000002000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
+                            "ty": 14
+                          }
+                        },
+                        "offset": "0x0700000003000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map_by_provider"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0900000004000000000000000000000000000000000000000000000000000000",
+                                            "ty": 13
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0a00000003000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0a00000004000000000000000000000000000000000000000000000000000000",
+                            "ty": 16
+                          }
+                        },
+                        "offset": "0x0900000004000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "allowed_provider_id_list"
+          }
+        ]
+      }
+    },
+    "types": [
+      {
+        "id": 0,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "type": 1,
+                  "typeName": "[u8; 32]"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_env",
+            "types",
+            "AccountId"
+          ]
+        }
+      },
+      {
+        "id": 1,
+        "type": {
+          "def": {
+            "array": {
+              "len": 32,
+              "type": 2
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "type": {
+          "def": {
+            "primitive": "u8"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": {
+          "def": {
+            "primitive": "u64"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "last_vacant",
+                  "type": 5,
+                  "typeName": "Index"
+                },
+                {
+                  "name": "len",
+                  "type": 5,
+                  "typeName": "u32"
+                },
+                {
+                  "name": "len_entries",
+                  "type": 5,
+                  "typeName": "u32"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Header"
+          ]
+        }
+      },
+      {
+        "id": 5,
+        "type": {
+          "def": {
+            "primitive": "u32"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 3,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 3
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "next",
+                  "type": 5,
+                  "typeName": "Index"
+                },
+                {
+                  "name": "prev",
+                  "type": 5,
+                  "typeName": "Index"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "VacantEntry"
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 9,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 9
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "uuid",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "provider_name",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "provider_owner",
+                  "type": 0,
+                  "typeName": "AccountId"
+                },
+                {
+                  "name": "create_time",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "name",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "logo",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "desc",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "schema",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "usage",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "price_plan",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "declaimer",
+                  "type": 10,
+                  "typeName": "String"
+                }
+              ]
+            }
+          },
+          "path": [
+            "services_market",
+            "services_market",
+            "Service"
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "type": {
+          "def": {
+            "primitive": "str"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 10,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 10
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 12,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 3,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 3
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 13,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 0,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 0
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 14,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 15,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 15
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 15,
+        "type": {
+          "def": {
+            "sequence": {
+              "type": 3
+            }
+          }
+        }
+      },
+      {
+        "id": 16,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 17,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 17
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 17,
+        "type": {
+          "def": {
+            "primitive": "bool"
+          }
+        }
+      },
+      {
+        "id": 18,
+        "type": {
+          "def": {
+            "sequence": {
+              "type": 0
+            }
+          }
+        }
+      },
+      {
+        "id": 19,
+        "type": {
+          "def": {
+            "sequence": {
+              "type": 9
+            }
+          }
+        }
+      },
+      {
+        "id": 20,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "page_index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_size",
+                  "type": 3,
+                  "typeName": "u64"
+                }
+              ]
+            }
+          },
+          "path": [
+            "page_helper",
+            "page_helper",
+            "PageParams"
+          ]
+        }
+      },
+      {
+        "id": 21,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "success",
+                  "type": 17,
+                  "typeName": "bool"
+                },
+                {
+                  "name": "err",
+                  "type": 10,
+                  "typeName": "String"
+                },
+                {
+                  "name": "total",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "pages",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_size",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "data",
+                  "type": 19,
+                  "typeName": "Vec<T>"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 9
+            }
+          ],
+          "path": [
+            "page_helper",
+            "page_helper",
+            "PageResult"
+          ]
+        }
+      }
+    ]
+  }
+}

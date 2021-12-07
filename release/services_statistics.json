@@ -1,0 +1,1504 @@
+{
+  "source": {
+    "hash": "0xd8a57db4f46e7a6796d8b6710de34cedc5d160e4c5a7a399606b86efdbe17c72",
+    "language": "ink! 3.0.0-rc6",
+    "compiler": "rustc 1.58.0-nightly"
+  },
+  "contract": {
+    "name": "services_statistics",
+    "version": "0.1.0",
+    "authors": [
+      "[your_name] <[your_email]>"
+    ]
+  },
+  "V1": {
+    "spec": {
+      "constructors": [
+        {
+          "args": [
+            {
+              "name": "controller",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "name": "market_addr",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            }
+          ],
+          "docs": [
+            "Constructor that initializes the `bool` value to the given `init_value`."
+          ],
+          "name": [
+            "new"
+          ],
+          "selector": "0x9bae9d5e"
+        }
+      ],
+      "docs": [],
+      "events": [
+        {
+          "args": [
+            {
+              "docs": [],
+              "indexed": true,
+              "name": "id",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "user_key",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "start_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "docs": [],
+              "indexed": false,
+              "name": "end_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [],
+          "name": "SubmitUsageRecordEvent"
+        }
+      ],
+      "messages": [
+        {
+          "args": [
+            {
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            }
+          ],
+          "docs": [
+            " A message that init a service."
+          ],
+          "mutates": true,
+          "name": [
+            "query_service_by_uuid"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Service"
+            ],
+            "type": 16
+          },
+          "selector": "0x8fcff46e"
+        },
+        {
+          "args": [
+            {
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "name": "nonce",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "name": "user_key",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "name": "start_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "name": "end_time",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "name": "usage",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            },
+            {
+              "name": "price_plan",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "name": "cost",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [
+            " A message that init a service."
+          ],
+          "mutates": true,
+          "name": [
+            "submit_usage"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "bool"
+            ],
+            "type": 17
+          },
+          "selector": "0x31ad3b6e"
+        },
+        {
+          "args": [
+            {
+              "name": "service_uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            }
+          ],
+          "docs": [],
+          "mutates": true,
+          "name": [
+            "query_service_nonce"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "u64"
+            ],
+            "type": 3
+          },
+          "selector": "0x4aabaa7a"
+        },
+        {
+          "args": [],
+          "docs": [],
+          "mutates": false,
+          "name": [
+            "list_all_statistics"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "Vec"
+            ],
+            "type": 18
+          },
+          "selector": "0x583d74ce"
+        },
+        {
+          "args": [
+            {
+              "name": "id",
+              "type": {
+                "displayName": [
+                  "u64"
+                ],
+                "type": 3
+              }
+            }
+          ],
+          "docs": [
+            " query service usage statistics by index"
+          ],
+          "mutates": false,
+          "name": [
+            "query_by_index"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "UsageRecord"
+            ],
+            "type": 10
+          },
+          "selector": "0xc4fdde3d"
+        },
+        {
+          "args": [
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 19
+              }
+            }
+          ],
+          "docs": [],
+          "mutates": false,
+          "name": [
+            "list_all_statistics_by_page"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 20
+          },
+          "selector": "0xf1fe2750"
+        },
+        {
+          "args": [
+            {
+              "name": "uuid",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 19
+              }
+            }
+          ],
+          "docs": [
+            " query service usage statistics by service uuid"
+          ],
+          "mutates": false,
+          "name": [
+            "query_by_service_uuid"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 20
+          },
+          "selector": "0x5a96c5ff"
+        },
+        {
+          "args": [
+            {
+              "name": "user_key",
+              "type": {
+                "displayName": [
+                  "String"
+                ],
+                "type": 11
+              }
+            },
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 19
+              }
+            }
+          ],
+          "docs": [
+            " query service usage statistics by user key"
+          ],
+          "mutates": false,
+          "name": [
+            "query_by_user_key"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 20
+          },
+          "selector": "0xdc7a6d5b"
+        },
+        {
+          "args": [
+            {
+              "name": "provider",
+              "type": {
+                "displayName": [
+                  "AccountId"
+                ],
+                "type": 0
+              }
+            },
+            {
+              "name": "params",
+              "type": {
+                "displayName": [
+                  "PageParams"
+                ],
+                "type": 19
+              }
+            }
+          ],
+          "docs": [
+            " query service usage statistics by provider"
+          ],
+          "mutates": false,
+          "name": [
+            "query_by_provider"
+          ],
+          "payable": false,
+          "returnType": {
+            "displayName": [
+              "PageResult"
+            ],
+            "type": 20
+          },
+          "selector": "0xe1bf2816"
+        }
+      ]
+    },
+    "storage": {
+      "struct": {
+        "fields": [
+          {
+            "layout": {
+              "cell": {
+                "key": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "ty": 0
+              }
+            },
+            "name": "owner"
+          },
+          {
+            "layout": {
+              "enum": {
+                "dispatchKey": "0x0100000000000000000000000000000000000000000000000000000000000000",
+                "variants": {
+                  "0": {
+                    "fields": [
+                      {
+                        "layout": {
+                          "struct": {
+                            "fields": [
+                              {
+                                "layout": {
+                                  "struct": {
+                                    "fields": [
+                                      {
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
+                                            "ty": 0
+                                          }
+                                        },
+                                        "name": "account_id"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "name": "inner"
+                              }
+                            ]
+                          }
+                        },
+                        "name": null
+                      }
+                    ]
+                  },
+                  "1": {
+                    "fields": []
+                  }
+                }
+              }
+            },
+            "name": "services"
+          },
+          {
+            "layout": {
+              "cell": {
+                "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
+                "ty": 3
+              }
+            },
+            "name": "statistics_index"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0300000000000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0400000000000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                                            "ty": 6
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0500000000000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
+                            "ty": 8
+                          }
+                        },
+                        "offset": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_nonce"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0600000001000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                                            "ty": 6
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0700000001000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
+                            "ty": 9
+                          }
+                        },
+                        "offset": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "statistics_map"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0800000002000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
+                                            "ty": 12
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0900000002000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
+                            "ty": 13
+                          }
+                        },
+                        "offset": "0x0800000003000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map_by_uuid"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0a00000003000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0a00000004000000000000000000000000000000000000000000000000000000",
+                                            "ty": 12
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0b00000003000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0b00000004000000000000000000000000000000000000000000000000000000",
+                            "ty": 13
+                          }
+                        },
+                        "offset": "0x0a00000004000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map_by_user_key"
+          },
+          {
+            "layout": {
+              "struct": {
+                "fields": [
+                  {
+                    "layout": {
+                      "struct": {
+                        "fields": [
+                          {
+                            "layout": {
+                              "cell": {
+                                "key": "0x0b00000004000000000000000000000000000000000000000000000000000000",
+                                "ty": 4
+                              }
+                            },
+                            "name": "header"
+                          },
+                          {
+                            "layout": {
+                              "struct": {
+                                "fields": [
+                                  {
+                                    "layout": {
+                                      "cell": {
+                                        "key": "0x0c00000004000000000000000000000000000000000000000000000000000000",
+                                        "ty": 5
+                                      }
+                                    },
+                                    "name": "len"
+                                  },
+                                  {
+                                    "layout": {
+                                      "array": {
+                                        "cellsPerElem": 1,
+                                        "layout": {
+                                          "cell": {
+                                            "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
+                                            "ty": 15
+                                          }
+                                        },
+                                        "len": 4294967295,
+                                        "offset": "0x0d00000004000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    },
+                                    "name": "elems"
+                                  }
+                                ]
+                              }
+                            },
+                            "name": "entries"
+                          }
+                        ]
+                      }
+                    },
+                    "name": "keys"
+                  },
+                  {
+                    "layout": {
+                      "hash": {
+                        "layout": {
+                          "cell": {
+                            "key": "0x0d00000005000000000000000000000000000000000000000000000000000000",
+                            "ty": 13
+                          }
+                        },
+                        "offset": "0x0c00000005000000000000000000000000000000000000000000000000000000",
+                        "strategy": {
+                          "hasher": "Blake2x256",
+                          "postfix": "",
+                          "prefix": "0x696e6b20686173686d6170"
+                        }
+                      }
+                    },
+                    "name": "values"
+                  }
+                ]
+              }
+            },
+            "name": "services_map_by_provider"
+          }
+        ]
+      }
+    },
+    "types": [
+      {
+        "id": 0,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "type": 1,
+                  "typeName": "[u8; 32]"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_env",
+            "types",
+            "AccountId"
+          ]
+        }
+      },
+      {
+        "id": 1,
+        "type": {
+          "def": {
+            "array": {
+              "len": 32,
+              "type": 2
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "type": {
+          "def": {
+            "primitive": "u8"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": {
+          "def": {
+            "primitive": "u64"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "last_vacant",
+                  "type": 5,
+                  "typeName": "Index"
+                },
+                {
+                  "name": "len",
+                  "type": 5,
+                  "typeName": "u32"
+                },
+                {
+                  "name": "len_entries",
+                  "type": 5,
+                  "typeName": "u32"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Header"
+          ]
+        }
+      },
+      {
+        "id": 5,
+        "type": {
+          "def": {
+            "primitive": "u32"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 3,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 3
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "next",
+                  "type": 5,
+                  "typeName": "Index"
+                },
+                {
+                  "name": "prev",
+                  "type": 5,
+                  "typeName": "Index"
+                }
+              ]
+            }
+          },
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "VacantEntry"
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 3,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 3
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 10,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 10
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "id",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "service_uuid",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "user_key",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "start_time",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "end_time",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "usage",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "price_plan",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "cost",
+                  "type": 3,
+                  "typeName": "u64"
+                }
+              ]
+            }
+          },
+          "path": [
+            "services_statistics",
+            "services_statistics",
+            "UsageRecord"
+          ]
+        }
+      },
+      {
+        "id": 11,
+        "type": {
+          "def": {
+            "primitive": "str"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 11,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 11
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 13,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "value",
+                  "type": 14,
+                  "typeName": "V"
+                },
+                {
+                  "name": "key_index",
+                  "type": 5,
+                  "typeName": "KeyIndex"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "V",
+              "type": 14
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "hashmap",
+            "ValueEntry"
+          ]
+        }
+      },
+      {
+        "id": 14,
+        "type": {
+          "def": {
+            "sequence": {
+              "type": 3
+            }
+          }
+        }
+      },
+      {
+        "id": 15,
+        "type": {
+          "def": {
+            "variant": {
+              "variants": [
+                {
+                  "fields": [
+                    {
+                      "type": 7,
+                      "typeName": "VacantEntry"
+                    }
+                  ],
+                  "index": 0,
+                  "name": "Vacant"
+                },
+                {
+                  "fields": [
+                    {
+                      "type": 0,
+                      "typeName": "T"
+                    }
+                  ],
+                  "index": 1,
+                  "name": "Occupied"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 0
+            }
+          ],
+          "path": [
+            "ink_storage",
+            "collections",
+            "stash",
+            "Entry"
+          ]
+        }
+      },
+      {
+        "id": 16,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "uuid",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "provider_name",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "provider_owner",
+                  "type": 0,
+                  "typeName": "AccountId"
+                },
+                {
+                  "name": "create_time",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "name",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "logo",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "desc",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "schema",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "usage",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "price_plan",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "declaimer",
+                  "type": 11,
+                  "typeName": "String"
+                }
+              ]
+            }
+          },
+          "path": [
+            "services_market",
+            "services_market",
+            "Service"
+          ]
+        }
+      },
+      {
+        "id": 17,
+        "type": {
+          "def": {
+            "primitive": "bool"
+          }
+        }
+      },
+      {
+        "id": 18,
+        "type": {
+          "def": {
+            "sequence": {
+              "type": 10
+            }
+          }
+        }
+      },
+      {
+        "id": 19,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "page_index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_size",
+                  "type": 3,
+                  "typeName": "u64"
+                }
+              ]
+            }
+          },
+          "path": [
+            "page_helper",
+            "page_helper",
+            "PageParams"
+          ]
+        }
+      },
+      {
+        "id": 20,
+        "type": {
+          "def": {
+            "composite": {
+              "fields": [
+                {
+                  "name": "success",
+                  "type": 17,
+                  "typeName": "bool"
+                },
+                {
+                  "name": "err",
+                  "type": 11,
+                  "typeName": "String"
+                },
+                {
+                  "name": "total",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "pages",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_index",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "page_size",
+                  "type": 3,
+                  "typeName": "u64"
+                },
+                {
+                  "name": "data",
+                  "type": 18,
+                  "typeName": "Vec<T>"
+                }
+              ]
+            }
+          },
+          "params": [
+            {
+              "name": "T",
+              "type": 10
+            }
+          ],
+          "path": [
+            "page_helper",
+            "page_helper",
+            "PageResult"
+          ]
+        }
+      }
+    ]
+  }
+}

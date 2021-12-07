@@ -25,7 +25,10 @@ use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};
 use crate::Protocol::Http;
 
+use crate::contract::{call, exec};
+
 // mod event_loop;
+mod contract;
 mod forward_service;
 mod forward_service_actors;
 mod forward_service_models;
@@ -59,6 +62,27 @@ struct Opt {
     /// Fixed value to generate deterministic peer ID.
     #[structopt(long)]
     secret_key_seed: Option<u8>,
+
+    #[structopt(default_value = "ws://127.0.0.1:9944", long)]
+    ws_endpoint: String,
+
+    #[structopt(
+        default_value = "5DVJQ7rK6L5fgRvDQpjQ7CMweyXAaYXwRBKMQY7yKhGo5hqk",
+        long
+    )]
+    market_contract_addr: String,
+
+    #[structopt(default_value = "./release/services_market.json", long)]
+    market_api_path: String,
+
+    #[structopt(
+        default_value = "5CGW7GKo13RdxwMFuYuUEw5eAq3eTM7G9fGk16p3EzKuGi3r",
+        long
+    )]
+    stat_contract_addr: String,
+
+    #[structopt(default_value = "./release/services_statistics.json", long)]
+    stat_api_path: String,
 }
 
 #[actix_web::main]
@@ -160,4 +184,103 @@ async fn main() -> Result<(), Box<dyn Error>> {
     future::try_join(mgmt_service, fwd_service).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // substrate node rpc
+    const WS_ENDPOINT: &str = "ws://127.0.0.1:9944";
+
+    const MARKET_CONTRACT_ADDR: &str = "5DTAoL5Fi2GhCoe4q3YbRPVm3zG3HxGfVHGYM9ZrQAzmrRbG";
+    const MARKET_ABI_PATH: &str = "./release/services_market.json";
+
+    const STAT_CONTRACT_ADDR: &str = "5HHj2h5d5vYrboC15mMp5DghGSkXaBoiWdL4odr1yKHgtFYc";
+    const STAT_ABI_PATH: &str = "./release/services_statistics.json";
+    #[test]
+    fn test_query() {
+        // query query_service_by_index
+        let result = contract::call(
+            WS_ENDPOINT.to_string(),
+            MARKET_CONTRACT_ADDR.to_string(),
+            MARKET_ABI_PATH.to_string(),
+            String::from("query_service_by_index"),
+            vec![String::from("0")],
+        );
+        println!("result: {:?}", result);
+        assert!(result.is_ok());
+        match result {
+            Ok(r) => {
+                println!("call result: {}", r)
+            }
+            Err(e) => {
+                println!("call err: {}", e)
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_service() {
+        const uuid: &'static str = "1";
+        let result = contract::exec(
+            WS_ENDPOINT.to_string(),
+            MARKET_CONTRACT_ADDR.to_string(),
+            MARKET_ABI_PATH.to_string(),
+            String::from("add_service"),
+            vec![
+                format!("\"{}\"", uuid),                                               //uuid
+                format!("\"{}\"", "test1"),                                            //name
+                format!("\"{}\"", "test1"),                                            //desc
+                format!("\"{}\"", "test1"),                                            //logo
+                String::from("12345678"),                                              //createTime
+                format!("\"{}\"", "test1"), //providerName
+                format!("\"{}\"", "5F7Xv7RaJe8BBNULSuRTXWtfn68njP1NqQL5LLf41piRcEJJ"), //providerOwner
+                format!("\"{}\"", "test1"),                                            //usage
+                format!("\"{}\"", "test1"),                                            //schema
+                format!("\"{}\"", "test1"),                                            //pricePlan
+                format!("\"{}\"", "test1"),                                            //declaimer
+            ],
+        );
+        println!("result: {:?}", result);
+        assert!(result.is_ok());
+        match result {
+            Ok(r) => {
+                println!("exec result: {}", r)
+            }
+            Err(e) => {
+                println!("exec err: {}", e)
+            }
+        }
+    }
+
+    #[test]
+    fn test_submit_usage() {
+        const uuid: &'static str = "1";
+        let result = contract::exec(
+            WS_ENDPOINT.to_string(),
+            STAT_CONTRACT_ADDR.to_string(),
+            STAT_ABI_PATH.to_string(),
+            String::from("submit_usage"),
+            vec![
+                format!("\"{}\"", uuid),    //service_uuid
+                String::from("0"),          //nonce
+                format!("\"{}\"", "test1"), //user_key
+                String::from("12345678"),   //start_time
+                String::from("12345678"),   //end_time
+                String::from("12345678"),   //usage
+                format!("\"{}\"", "test1"), //price_plan
+                String::from("12345678"),   //cost
+            ],
+        );
+        println!("result: {:?}", result);
+        assert!(result.is_ok());
+        match result {
+            Ok(r) => {
+                println!("exec result: {}", r)
+            }
+            Err(e) => {
+                println!("exec err: {}", e)
+            }
+        }
+    }
 }
