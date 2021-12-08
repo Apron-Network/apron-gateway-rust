@@ -42,7 +42,7 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
         if let Ok(Frame::Text(text_msg)) = msg {
             block_on(self.data_sender.send(text_msg.to_vec()).map(move |_| {
                 info!(
-                    "ServiceSideGateWay: Sent received message to ClientSideGateway: {:?}",
+                    "ServiceSideGateWay: Sent received message to ServiceSideGatewayP2P: {:?}",
                     text_msg
                 )
             }));
