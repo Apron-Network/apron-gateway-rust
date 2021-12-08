@@ -20,7 +20,7 @@ use structopt::StructOpt;
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
 use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
-use crate::network::{Event, DataExchangeRequest};
+use crate::network::{DataExchangeRequest, Event};
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};

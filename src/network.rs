@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
 
-use bincode;
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
 use awc::http::Uri;
 use awc::Client;
+use bincode;
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
@@ -357,6 +357,7 @@ pub async fn network_event_loop(
                 // receive command outside of event loop.
                 match command {
                     Some(c) => match c {
+                        // Commands for libp2p
                         Command::PublishGossip { data } => {
                             info!("[libp2p] publish local new message to remote: {}", String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().gossipsub.publish(topic.clone(), data);
@@ -365,6 +366,8 @@ pub async fn network_event_loop(
                             info!("[libp2p] Dial to peer: {}, peer_addr: {:?}", peer.to_string(), peer_addr);
                         //    swarm.dial_addr(peer_addr.with(Protocol::P2p(peer.into())));
                         }
+
+                        // Commands for proxy data
                         Command::SendRequest { peer, data } => {
                             info!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().request_response.send_request(&peer, DataExchangeRequest{schema: 0, data});
@@ -427,7 +430,8 @@ pub struct DataExchangeCodec();
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct DataExchangeRequest {
-    pub(crate) schema: u8,  // 0 for InitRequest, 1 for Data
+    pub(crate) schema: u8,
+    // 0 for InitRequest, 1 for Data
     pub(crate) data: Vec<u8>,
 }
 // pub struct DataExchangeRequest(pub(crate) Vec<u8>);
