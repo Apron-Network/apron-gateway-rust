@@ -21,7 +21,7 @@ use crate::forward_service_actors::ServiceSideWsActor;
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
 use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
-use crate::network::{DataExchangeRequest, Event};
+use crate::network::{Command, DataExchangeRequest, Event};
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
 use crate::state::{get, new_state};
@@ -159,13 +159,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .start();
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
+    let mgmt_p2p_handler = p2p_handler.clone();
 
     let mgmt_service = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
             .app_data(data.clone())
-            .app_data(p2p_handler.clone())
+            .app_data(mgmt_p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
@@ -181,34 +182,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             futures::select! {
                 evt = event_receiver.next() => {
-                    match(evt) {
-                        Some(network::Event::ProxyRequestToMainLoop {
-                            info,
-                            mut data_sender,
-                        }) => {
-                            info!(
-                                "ServiceSideGateway: Proxy request received is {:?}",
-                                info.clone().request_id
-                            );
-                            // TODO: Get ws url from saved service info
-                            let addr = connect_to_ws_service("ws://localhost:10000", data_sender).await;
-                            req_id_addr_mapping.insert(info.clone().request_id, addr);
-                            info!("ServiceSideGateway: InitWsConn: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), info.clone().request_id);
+                    info!("Receive event: {:#?}", evt);
+                    match evt {
+                        Some(evt) => match evt {
+                            network::Event::ProxyRequestToMainLoop {
+                                info,
+                                remote_peer_id,
+                            } => {
+                                info!(
+                                    "ServiceSideGateway: Proxy request received is {:?}",
+                                    info.clone().request_id
+                                );
+                                // TODO: Get ws url from saved service info
+                                let addr = connect_to_ws_service(
+                                    "ws://localhost:10000",
+                                    remote_peer_id,
+                                    info.clone().request_id,
+                                    p2p_handler.clone()
+                                ).await;
+                                req_id_addr_mapping.insert(info.clone().request_id, addr);
+                                info!("ServiceSideGateway: InitWsConn: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), info.clone().request_id);
+                            }
+
+                            network::Event::ProxyDataFromClient {
+                                data,
+                                mut data_sender,
+                            } => {
+                                info!(
+                                    "ServiceSideGateway: client side proxy data received {:?}",
+                                    data.data.clone()
+                                );
+                                // TODO: Send data to websocket connection
+                                info!("ServiceSideGateway: WsData: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), data.request_id.clone());
+                                let service_addr = req_id_addr_mapping.get(&data.request_id).unwrap();
+                                service_addr.do_send(data);
+                            }
+                            _ => {
+                                info!("Receive event 1: {:#?}", evt);
+                            }
                         }
-                        Some(network::Event::ProxyDataFromClient {
-                            data,
-                            mut data_sender,
-                        }) => {
-                            info!(
-                                "ServiceSideGateway: client side proxy data received {:?}",
-                                data.data.clone()
-                            );
-                            // TODO: Send data to websocket connection
-                            info!("ServiceSideGateway: WsData: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), data.request_id.clone());
-                            let service_addr = req_id_addr_mapping.get(&data.request_id).unwrap();
-                            service_addr.do_send(data);
+                        _ => {
+                            info!("Receive event 2: {:#?}", evt);
                         }
-                        _ => {}
                     }
                 }
             }

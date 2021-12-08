@@ -126,7 +126,7 @@ pub(crate) async fn forward_ws_proxy_request(
     // Create websocket session between ClientSideGateway and Client
     let client_ws_actor = ClientSideWsActor {
         req_info,
-        remote_peer_id,
+        service_peer_id: remote_peer_id,
         p2p_handler,
     };
     // TODO: Verify whether it is possible to add function to set actor in, and check whether it can pass lifetime check
