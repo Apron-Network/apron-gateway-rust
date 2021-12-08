@@ -1,14 +1,16 @@
-use actix::io::SinkWrite;
-use actix::{Actor, Addr, StreamHandler};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
+use std::sync::{Mutex, MutexGuard};
 
-use actix_web::web::head;
+use actix::io::SinkWrite;
+use actix::{Actor, Addr, StreamHandler};
+use actix_web::web::{head, Data};
 use actix_web::{web, HttpRequest};
 use actix_web_actors::ws;
 use awc::http::{HeaderName, Uri};
 use awc::{Client, ClientRequest};
+use futures::channel::mpsc;
 use futures::channel::mpsc::Sender;
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
@@ -18,8 +20,9 @@ use url::Url;
 
 use crate::forward_service_actors::ServiceSideWsActor;
 use crate::forward_service_models::ProxyRequestInfo;
+use crate::network::Command;
 use crate::stream::StreamExt;
-use crate::{forward_service_actors, HttpProxyResponse};
+use crate::{forward_service_actors, HttpProxyResponse, PeerId, SharedHandler};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -137,7 +140,9 @@ pub fn send_http_request_blocking(
 // Function connects to websocket service, should only be invoked in service side gateway.
 pub(super) async fn connect_to_ws_service(
     service_uri: &str,
-    data_sender: Sender<Vec<u8>>,
+    remote_peer_id: PeerId,
+    request_id: String,
+    p2p_handler: Data<SharedHandler>,
 ) -> Addr<ServiceSideWsActor> {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
@@ -152,7 +157,9 @@ pub(super) async fn connect_to_ws_service(
         ServiceSideWsActor::add_stream(stream, ctx);
         ServiceSideWsActor {
             writer: SinkWrite::new(sink, ctx),
-            data_sender,
+            client_peer_id: remote_peer_id,
+            request_id,
+            p2p_handler,
         }
     })
 }

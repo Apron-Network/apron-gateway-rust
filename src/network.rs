@@ -89,10 +89,11 @@ pub enum Command {
     },
 }
 
+#[derive(Debug)]
 pub enum Event {
     ProxyRequestToMainLoop {
         info: ProxyRequestInfo,
-        data_sender: mpsc::Sender<Vec<u8>>,
+        remote_peer_id: PeerId,
     },
 
     ProxyDataFromClient {
@@ -110,7 +111,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
     // Create a public/private key pair, either random or based on a seed.
     let (local_key, local_peer_id) = helpers::generate_peer_id_from_seed(secret_key_seed);
 
-    println!("Local peer id: {:?}", local_peer_id);
+    info!("Local peer id: {:?}", local_peer_id);
 
     // Set up an encrypted TCP Transport over the Mplex and Yamux protocols
     let transport = libp2p::development_transport(local_key.clone()).await;
@@ -163,7 +164,7 @@ pub async fn network_event_loop(
 ) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
-    println!("network_event_loop started");
+    info!("network_event_loop started");
     swarm.behaviour_mut().gossipsub.subscribe(&topic);
 
     let mut receiver = receiver.fuse();
@@ -214,7 +215,7 @@ pub async fn network_event_loop(
 
                                     let client_side_req_id = proxy_request_info.clone().request_id;
 
-                                    if (proxy_request_info.clone().is_websocket) {
+                                    if proxy_request_info.clone().is_websocket {
                                         // Running on service side gateway, after receiving websocket request,
                                         // forward the request directly to main loop since the event handler
                                         // can't process async tasks well.
@@ -222,7 +223,7 @@ pub async fn network_event_loop(
                                         let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
                                         event_sender.send(Event::ProxyRequestToMainLoop{
                                             info: proxy_request_info.clone(),
-                                            data_sender: ws_data_sender,
+                                            remote_peer_id: peer,
                                         }).await.expect("Event receiver not to be dropped.");
 
                                         match ws_data_receiver.next().await {
@@ -335,6 +336,7 @@ pub async fn network_event_loop(
             },
             command = receiver.next() =>  {
                 // receive command outside of event loop.
+                warn!("Received command: {:#?}", command);
                 match command {
                     Some(c) => match c {
                         // Commands for libp2p
