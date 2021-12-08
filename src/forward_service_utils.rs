@@ -120,6 +120,7 @@ pub fn send_http_request_blocking(
         .unwrap();
 
     Ok(HttpProxyResponse {
+        is_websocket_resp: false,
         request_id: req_info.request_id,
         status_code: resp.status().as_u16(),
         headers: {
