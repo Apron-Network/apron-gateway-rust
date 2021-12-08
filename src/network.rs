@@ -223,6 +223,7 @@ pub async fn network_event_loop(
                                             Some(data) => {
                                                 println!("Proxy data received from main loop is {:?}", data);
                                                 let resp = HttpProxyResponse{
+                                                    is_websocket_resp: true,
                                                     request_id: proxy_request_info.request_id,
                                                     status_code: 200,
                                                     headers: HashMap::new(),
@@ -265,8 +266,12 @@ pub async fn network_event_loop(
                             );
 
                             info!("Send response back to client");
-                            // let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
-                            // sender.send(resp).await.expect("Event receiver not to be dropped.");
+                            if resp.is_websocket_resp {
+                                warn!("Websocket support is developing");
+                            } else {
+                                let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                                sender.send(resp).await.expect("Event receiver not to be dropped.");
+                            }
                         }
                     }
 
