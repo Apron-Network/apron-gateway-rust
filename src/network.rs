@@ -103,8 +103,14 @@ pub enum Event {
         data_sender: mpsc::Sender<Vec<u8>>,
     },
 
-    ProxyData {
+    ProxyDataFromClient {
         data: ProxyData,
+        data_sender: mpsc::Sender<Vec<u8>>,
+    },
+
+    ProxyDataFromService {
+        data: ProxyData,
+        data_sender: mpsc::Sender<Vec<u8>>,
     },
 }
 
@@ -279,12 +285,18 @@ pub async fn network_event_loop(
                                     }
                                 }
                                 1 => {
+                                    // Received proxy data from ClientSideGateway, and forward to service
                                     let proxy_data: ProxyData = bincode::deserialize(&request.data).unwrap();
                                     info!("Received proxy data request: {:?}", proxy_data);
+
+                                    let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
+                                    event_sender.send(Event::ProxyDataFromClient{
+                                        data: proxy_data,
+                                        data_sender: ws_data_sender,
+                                    }).await.expect("Event receiver not to be dropped.");
                                 }
                                 _ => { error!("Unknown data schema: {:?}", request.schema)}
-                                }
-
+                            }
                         }
 
                         RequestResponseMessage::Response { request_id, response, } => {

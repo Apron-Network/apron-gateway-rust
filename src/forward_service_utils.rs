@@ -1,5 +1,5 @@
 use actix::io::SinkWrite;
-use actix::{Actor, StreamHandler};
+use actix::{Actor, Addr, StreamHandler};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -135,7 +135,10 @@ pub fn send_http_request_blocking(
 }
 
 // Function connects to websocket service, should only be invoked in service side gateway.
-pub async fn connect_to_ws_service(service_uri: &str, data_sender: Sender<Vec<u8>>) {
+pub(super) async fn connect_to_ws_service(
+    service_uri: &str,
+    data_sender: Sender<Vec<u8>>,
+) -> Addr<ServiceSideWsActor> {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
         .connect()
@@ -151,5 +154,5 @@ pub async fn connect_to_ws_service(service_uri: &str, data_sender: Sender<Vec<u8
             writer: SinkWrite::new(sink, ctx),
             data_sender,
         }
-    });
+    })
 }
