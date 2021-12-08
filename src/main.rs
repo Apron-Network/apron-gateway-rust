@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
 
-use actix::{spawn, Arbiter, ContextFutureSpawner, Response};
+use actix::{spawn, Addr, Arbiter, ContextFutureSpawner, Response};
 use actix_web::body::{Body, ResponseBody};
 use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
 use async_std::task::block_on;
@@ -16,6 +16,7 @@ use log::info;
 use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
+use crate::forward_service_actors::ServiceSideWsActor;
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::HttpProxyResponse;
 use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
@@ -145,20 +146,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // * processes websocket connection
     // * forward message to network handler with data_sender
     Arbiter::spawn(async move {
-        match event_receiver.next().await {
-            Some(network::Event::ProxyRequestToMainLoop {
-                info,
-                mut data_sender,
-            }) => {
-                info!(
-                    "ServiceSideGateway: Proxy request received is {:?}",
-                    info.clone().request_id
-                );
-                // TODO: Get ws url from saved service info
-                connect_to_ws_service("ws://localhost:10000", data_sender).await;
-                // data_sender.send(Vec::from("Hello What")).await;
+        let mut req_id_addr_mapping: HashMap<String, Addr<ServiceSideWsActor>> = HashMap::new();
+        loop {
+            futures::select! {
+                evt = event_receiver.next() => {
+                    match(evt) {
+                        Some(network::Event::ProxyRequestToMainLoop {
+                            info,
+                            mut data_sender,
+                        }) => {
+                            info!(
+                                "ServiceSideGateway: Proxy request received is {:?}",
+                                info.clone().request_id
+                            );
+                            // TODO: Get ws url from saved service info
+                            let addr = connect_to_ws_service("ws://localhost:10000", data_sender).await;
+                            req_id_addr_mapping.insert(info.clone().request_id, addr);
+                            info!("ServiceSideGateway: InitWsConn: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), info.clone().request_id);
+                        }
+                        Some(network::Event::ProxyDataFromClient {
+                            data,
+                            mut data_sender,
+                        }) => {
+                            info!(
+                                "ServiceSideGateway: client side proxy data received {:?}",
+                                data.data.clone()
+                            );
+                            // TODO: Send data to websocket connection
+                            info!("ServiceSideGateway: WsData: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), data.request_id.clone());
+                            let service_addr = req_id_addr_mapping.get(&data.request_id).unwrap();
+                            service_addr.do_send(data);
+                        }
+                        _ => {}
+                    }
+                }
             }
-            _ => {}
         }
     });
 

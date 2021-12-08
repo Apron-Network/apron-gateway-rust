@@ -1,9 +1,10 @@
 use std::future::Future;
+use std::string::String;
 
 use actix::io::SinkWrite;
 use actix::*;
 use actix_codec::Framed;
-use actix_web::web::Data;
+use actix_web::web::{Bytes, Data};
 use actix_web_actors::ws;
 use awc::error::WsProtocolError;
 use awc::http::Uri;
@@ -18,9 +19,8 @@ use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use libp2p::PeerId;
 use log::{debug, error, info};
 use serde::de::Unexpected::Str;
-use serde_json::Value::String;
 
-use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::network::Command;
 use crate::{HttpProxyResponse, SharedHandler};
 
@@ -52,12 +52,17 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
     }
 }
 
-impl Handler<TestWsMsg> for ServiceSideWsActor {
+impl Handler<ProxyData> for ServiceSideWsActor {
     type Result = ();
 
-    fn handle(&mut self, msg: TestWsMsg, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: ProxyData, _ctx: &mut Context<Self>) {
         info!("Message sent to service side: {:?}", msg);
-        self.writer.write(Message::Text(msg.0));
+        if msg.is_binary {
+            self.writer.write(Message::Binary(Bytes::from(msg.data)));
+        } else {
+            self.writer
+                .write(Message::Text(String::from_utf8(msg.data).unwrap()));
+        }
     }
 }
 
@@ -110,30 +115,38 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Binary(bin)) => {
-                // TODO: Forward the data to service if it is ProxyData
-                // ctx.binary(bin)
+                info!("Binary Msg: {:?}", bin);
+                self.send_proxy_data(ProxyData {
+                    request_id: self.req_info.request_id.to_string(),
+                    is_binary: true,
+                    data: bin.to_vec(),
+                });
+
+                // DEBUG
+                ctx.binary(bin)
             }
             Ok(ws::Message::Text(text)) => {
-                info!("Msg: {:?}", text);
-
-                let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
-
-                // Send ProxyRequestInfo to service side gateway via stream
-                block_on(
-                    command_sender.send(Command::SendProxyData {
-                        peer: self.remote_peer_id,
-                        data: bincode::serialize(&ProxyData {
-                            channel_id: "".to_string(),
-                            data: text.clone().into_bytes(),
-                        })
-                        .unwrap(),
-                    }),
-                );
+                info!("Text Msg: {:?}", text);
+                self.send_proxy_data(ProxyData {
+                    request_id: self.req_info.request_id.to_string(),
+                    is_binary: false,
+                    data: text.clone().into_bytes(),
+                });
 
                 // DEBUG
                 ctx.text(text);
             }
             _ => (),
         }
+    }
+}
+
+impl ClientSideWsActor {
+    fn send_proxy_data(&mut self, proxy_data: ProxyData) {
+        let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
+        block_on(command_sender.send(Command::SendProxyData {
+            peer: self.remote_peer_id,
+            data: bincode::serialize(&proxy_data).unwrap(),
+        }));
     }
 }
