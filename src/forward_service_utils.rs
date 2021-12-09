@@ -142,7 +142,7 @@ pub(super) async fn connect_to_ws_service(
     service_uri: &str,
     remote_peer_id: PeerId,
     request_id: String,
-    p2p_handler: Data<SharedHandler>,
+    data_sender: Sender<Vec<u8>>,
 ) -> Addr<ServiceSideWsActor> {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
@@ -159,7 +159,7 @@ pub(super) async fn connect_to_ws_service(
             writer: SinkWrite::new(sink, ctx),
             client_peer_id: remote_peer_id,
             request_id,
-            p2p_handler,
+            data_sender,
         }
     })
 }

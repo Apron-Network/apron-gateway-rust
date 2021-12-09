@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
+use std::task;
 
 use actix::{spawn, Addr, Arbiter, ContextFutureSpawner, Response};
 use actix_web::body::{Body, ResponseBody};
@@ -157,6 +158,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             network::Event::ProxyRequestToMainLoop {
                                 info,
                                 remote_peer_id,
+                                data_sender,
                             } => {
                                 info!(
                                     "ServiceSideGateway: Proxy request received is {:?}",
@@ -167,7 +169,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     "ws://localhost:10000",
                                     remote_peer_id,
                                     info.clone().request_id,
-                                    p2p_handler.clone()
+                                    data_sender,
                                 ).await;
                                 req_id_addr_mapping.insert(info.clone().request_id, addr);
                                 info!("ServiceSideGateway: InitWsConn: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), info.clone().request_id);
