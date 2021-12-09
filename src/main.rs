@@ -199,7 +199,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use serial_test::serial;
     // substrate node rpc
     const WS_ENDPOINT: &str = "ws://127.0.0.1:9944";
 
