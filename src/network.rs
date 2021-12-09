@@ -102,6 +102,7 @@ pub enum Event {
     ProxyRequestToMainLoop {
         info: ProxyRequestInfo,
         remote_peer_id: PeerId,
+        data_sender: mpsc::Sender<Vec<u8>>,
     },
 
     ProxyDataFromClient {
@@ -253,9 +254,11 @@ pub async fn network_event_loop(
                                         // can't process async tasks well.
                                         println!("Forwarding ws request to main loop");
                                         let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
+
                                         event_sender.send(Event::ProxyRequestToMainLoop{
                                             info: proxy_request_info.clone(),
                                             remote_peer_id: peer,
+                                            data_sender: ws_data_sender,
                                         }).await.expect("Event receiver not to be dropped.");
 
                                         match ws_data_receiver.next().await {

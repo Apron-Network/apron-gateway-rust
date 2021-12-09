@@ -2,38 +2,38 @@ use std::future::Future;
 use std::string::String;
 use std::sync::Mutex;
 
-use actix::*;
 use actix::io::SinkWrite;
+use actix::*;
 use actix_codec::Framed;
 use actix_web::web::{Bytes, Data};
 use actix_web_actors::ws;
 use actix_web_actors::ws::ProtocolError;
-use awc::BoxedSocket;
-use awc::Client;
 use awc::error::WsProtocolError;
 use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
-use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use awc::BoxedSocket;
+use awc::Client;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{Receiver, Sender};
 use futures::executor::block_on;
 use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
+use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use libp2p::PeerId;
 use log::{debug, error, info};
 use reqwest::Proxy;
 use serde::de::Unexpected::Str;
 
-use crate::{HttpProxyResponse, SharedHandler};
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::network::Command;
+use crate::{HttpProxyResponse, SharedHandler};
 
 // Service side actor, connect to ws service and proxy data between libp2p stream and service
 pub(crate) struct ServiceSideWsActor {
     pub(crate) writer: SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>,
     pub(crate) client_peer_id: PeerId,
     pub(crate) request_id: String,
-    pub(crate) p2p_handler: Data<SharedHandler>,
+    pub(crate) data_sender: Sender<Vec<u8>>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -61,13 +61,16 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
             }
         };
 
-        info!("ServiceSideGateway: Prepare to send data to client {:?}, data: {:?}", self.client_peer_id, proxy_data);
-        let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
-        block_on(command_sender.send(Command::SendProxyData {
-            peer: self.client_peer_id,
-            data: bincode::serialize(&proxy_data).unwrap(),
-        }));
-        info!("ServiceSideGateway: Sent data to client {:?}, data: {:?}", self.client_peer_id, proxy_data);
+        info!(
+            "ServiceSideGateway: Prepare to send data to client {:?}, data: {:?}",
+            self.client_peer_id, proxy_data
+        );
+        self.data_sender
+            .try_send(bincode::serialize(&proxy_data).unwrap());
+        info!(
+            "ServiceSideGateway: Sent data to client {:?}, data: {:?}",
+            self.client_peer_id, proxy_data
+        );
     }
 }
 
@@ -135,6 +138,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
             peer: self.service_peer_id,
             data: bincode::serialize(&proxy_data).unwrap(),
         }));
-        info!("ClientSideGateway: Sent data to service {:?}, data: {:?}", self.service_peer_id, proxy_data);
+        info!(
+            "ClientSideGateway: Sent data to service {:?}, data: {:?}",
+            self.service_peer_id, proxy_data
+        );
     }
 }
