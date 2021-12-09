@@ -40,6 +40,15 @@ mod routes;
 mod service;
 mod state;
 
+// substrate node rpc
+const WS_ENDPOINT: &str = "ws://127.0.0.1:9944";
+
+const MARKET_CONTRACT_ADDR: &str = "5D6CT1gEXqWiRPzGtNiNE74vWJeVfGgjJBhKfoEkK47f5DQH";
+const MARKET_ABI_PATH: &str = "./release/services_market.json";
+
+const STAT_CONTRACT_ADDR: &str = "5FUPaZUs2Vk3RypeK2ozeMyTZbQLraoWFKuAwrer1GPoUv8Y";
+const STAT_ABI_PATH: &str = "./release/services_statistics.json";
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "apron gateway")]
 struct Opt {
@@ -189,38 +198,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
+    use serial_test::serial;
     // substrate node rpc
     const WS_ENDPOINT: &str = "ws://127.0.0.1:9944";
 
-    const MARKET_CONTRACT_ADDR: &str = "5DTAoL5Fi2GhCoe4q3YbRPVm3zG3HxGfVHGYM9ZrQAzmrRbG";
+    const MARKET_CONTRACT_ADDR: &str = "5FwVe1jsNQociUBV17VZs6SxcWbYy8JjULj9KNuY4gvb43uK";
     const MARKET_ABI_PATH: &str = "./release/services_market.json";
 
-    const STAT_CONTRACT_ADDR: &str = "5HHj2h5d5vYrboC15mMp5DghGSkXaBoiWdL4odr1yKHgtFYc";
+    const STAT_CONTRACT_ADDR: &str = "5FrD1UGeUYG9x4t323gQhy5q2zN32i4o4huZyeq7tWqUHqfy";
     const STAT_ABI_PATH: &str = "./release/services_statistics.json";
-    #[test]
-    fn test_query() {
-        // query query_service_by_index
-        let result = contract::call(
-            WS_ENDPOINT.to_string(),
-            MARKET_CONTRACT_ADDR.to_string(),
-            MARKET_ABI_PATH.to_string(),
-            String::from("query_service_by_index"),
-            vec![String::from("0")],
-        );
-        println!("result: {:?}", result);
-        assert!(result.is_ok());
-        match result {
-            Ok(r) => {
-                println!("call result: {}", r)
-            }
-            Err(e) => {
-                println!("call err: {}", e)
-            }
-        }
-    }
 
     #[test]
     fn test_add_service() {
+        println!("test_add_service");
         const uuid: &'static str = "1";
         let result = contract::exec(
             WS_ENDPOINT.to_string(),
@@ -249,6 +240,28 @@ mod tests {
             }
             Err(e) => {
                 println!("exec err: {}", e)
+            }
+        }
+    }
+
+    #[test]
+    fn test_query() {
+        // query query_service_by_index
+        let result = contract::call(
+            WS_ENDPOINT.to_string(),
+            MARKET_CONTRACT_ADDR.to_string(),
+            MARKET_ABI_PATH.to_string(),
+            String::from("query_service_by_index"),
+            vec![String::from("0")],
+        );
+        println!("result: {:?}", result);
+        assert!(result.is_ok());
+        match result {
+            Ok(r) => {
+                println!("call result: {}", r)
+            }
+            Err(e) => {
+                println!("call err: {}", e)
             }
         }
     }
