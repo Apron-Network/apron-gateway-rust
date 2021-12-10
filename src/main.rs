@@ -177,7 +177,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                             network::Event::ProxyDataFromClient {
                                 data,
-                                mut data_sender,
                             } => {
                                 info!(
                                     "ServiceSideGateway: client side proxy data received {:?}",
@@ -187,6 +186,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 info!("ServiceSideGateway: WsData: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), data.request_id.clone());
                                 let service_addr = req_id_ws_addr_mapping.get(&data.request_id).unwrap();
                                 service_addr.do_send(data);
+                            }
+
+                            network::Event::ProxyDataFromService {
+                                data,
+                            } => {
                             }
                             _ => {
                                 info!("Receive event 1: {:#?}", evt);

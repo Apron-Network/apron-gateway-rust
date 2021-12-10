@@ -101,12 +101,10 @@ pub enum Event {
 
     ProxyDataFromClient {
         data: ProxyData,
-        data_sender: mpsc::Sender<Vec<u8>>,
     },
 
     ProxyDataFromService {
         data: ProxyData,
-        data_sender: mpsc::Sender<Vec<u8>>,
     },
 }
 
@@ -172,7 +170,7 @@ pub async fn network_event_loop(
     let mut receiver = receiver.fuse();
 
     let mut ws_data_req_id_sender_mapping: HashMap<String, mpsc::Sender<Vec<u8>>> = HashMap::new();
-
+    
     loop {
         let share_data = data.clone();
         // let share_service_peer_mapping = service_peer_mapping.clone();
@@ -233,23 +231,32 @@ pub async fn network_event_loop(
                                             data_sender: ws_data_sender,
                                         }).await.expect("Event receiver not to be dropped.");
 
-                                        match ws_data_receiver.next().await {
-                                            Some(data) => {
-                                                println!("Proxy data received from main loop is {:?}", data);
-                                                let proxy_data: ProxyData = bincode::deserialize(&data).unwrap();
-                                                let resp = HttpProxyResponse{
-                                                    is_websocket_resp: true,
-                                                    request_id: proxy_request_info.request_id,
-                                                    status_code: 200,
-                                                    headers: HashMap::new(),
-                                                    body: proxy_data.data,
-                                                };
-                                                swarm.behaviour_mut()
-                                                        .request_response
-                                                        .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap()));
+                                        loop {
+                                            futures::select! {
+                                                ws_data = ws_data_receiver.next() => {
+                                                    match ws_data {
+                                                        Some(ws_data) => {
+                                                            println!("Proxy data received from main loop is {:?}", ws_data);
+                                                            let proxy_data: ProxyData = bincode::deserialize(&ws_data).unwrap();
+                                                            let resp = HttpProxyResponse {
+                                                                is_websocket_resp: true,
+                                                                request_id: proxy_request_info.clone().request_id,
+                                                                status_code: 200,
+                                                                headers: HashMap::new(),
+                                                                body: proxy_data.data,
+                                                            };
+
+                                                            // TODO: Compile error says channel has been moved.
+                                                                swarm.behaviour_mut()
+                                                                    .request_response
+                                                                    .send_response(channel.clone(), FileResponse(bincode::serialize(&resp).unwrap()));
+                                                            }
+                                                        _ => {error!("Got none data")}
+                                                    }
+
+                                                }
                                             }
-                                            _ => {}
-                                        }
+                                            }
                                     } else {
                                         // TODO: Replace this hard coded base to value fetched from service
                                         let tmp_base = "http://localhost:8923/anything";
@@ -266,10 +273,8 @@ pub async fn network_event_loop(
                                     let proxy_data: ProxyData = bincode::deserialize(&request.data).unwrap();
                                     info!("Received proxy data request: {:?}", proxy_data);
 
-                                    let (ws_data_sender, mut ws_data_receiver): (mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>)= mpsc::channel(0);
                                     event_sender.send(Event::ProxyDataFromClient{
                                         data: proxy_data,
-                                        data_sender: ws_data_sender,
                                     }).await.expect("Event receiver not to be dropped.");
                                 }
                                 _ => { error!("Unknown data schema: {:?}", request.schema)}
@@ -370,7 +375,7 @@ pub async fn network_event_loop(
                             info!("[libp2p] Send proxy data to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().request_response.send_request(&peer, DataExchangeRequest{schema: 1, data});
                         }
-                        Command::SendResponse { data, channel} => {
+                        Command::SendResponse { data, channel } => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
                         }
                     }
