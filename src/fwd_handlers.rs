@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ptr::null;
 
 use actix::Arbiter;
 use actix_web::web::Data;
@@ -14,7 +15,7 @@ use rand::{thread_rng, Rng};
 use uuid::Bytes;
 
 use crate::forward_service_actors::ClientSideWsActor;
-use crate::forward_service_models::{HttpProxyResponse, ProxyRequestInfo};
+use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
 use crate::network::Command;
 use crate::state::{set, AppState};
 use crate::{forward_service_actors, forward_service_utils::parse_request, PeerId, SharedHandler};
@@ -73,6 +74,7 @@ pub(crate) async fn forward_http_proxy_request(
     command_sender
         .send(Command::SendRequest {
             peer: remote_peer_id,
+            request_id: req_info.clone().request_id,
             data: bincode::serialize(&req_info).unwrap(),
         })
         .await
@@ -92,7 +94,6 @@ pub(crate) async fn forward_http_proxy_request(
 
 pub(crate) async fn forward_ws_proxy_request(
     query_args: web::Query<HashMap<String, String>>,
-    // raw_body: web::Bytes,    // web::Bytes here may causes request parsing blocking, remove it for now
     req: HttpRequest,
     stream: web::Payload,
     p2p_handler: Data<SharedHandler>,
@@ -128,9 +129,53 @@ pub(crate) async fn forward_ws_proxy_request(
         req_info,
         service_peer_id: remote_peer_id,
         p2p_handler,
+        request_id_client_session_mapping,
     };
     // TODO: Verify whether it is possible to add function to set actor in, and check whether it can pass lifetime check
-    ws::start(client_ws_actor, &req, stream)
+    let foo = ws::start_with_addr(client_ws_actor, &req, stream).unwrap();
+    let addr = foo.0;
+
+    Arbiter::spawn(async move {
+        warn!("Spawn resp receiver");
+        loop {
+            warn!("Msg Receiver Loop");
+            futures::select! {
+            msg = resp_receiver.next() => {
+                info!("ClientSideWsActor: Receive msg data from p2p channel: {:?}", msg);
+                match msg {
+                    Some(msg) => match msg {
+                            HttpProxyResponse {
+                                is_websocket_resp,
+                                request_id,
+                                status_code,
+                                headers,
+                                body,
+                            } => {
+                                info!("ClientSideWsActor: ProxyData: {:?}", body.clone());
+                                addr.do_send(ProxyData{
+                                    request_id: "".to_string(),
+                                    is_binary: false,
+                                    data: body,
+                                });
+                            }
+                            _ => {
+                                info!("ClientSideWsActor: Receive msg 1: {:#?}", msg);
+                            }
+                    }
+                    _ => {
+                        info!("ClientSideWsActor: Receive msg 2: {:#?}", msg);
+                    }
+                }
+            },
+            complete => {
+                error!("ClientSideWsActor: Future select exit");
+                break;
+            },
+            }
+        }
+    });
+
+    foo.1
 
     // let proxy_resp = resp_receiver.recv().unwrap();
     //

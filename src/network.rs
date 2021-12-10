@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::hash::Hash;
 use std::iter;
 
 // use async_std::channel;
@@ -71,6 +72,7 @@ pub enum Command {
     },
     SendRequest {
         peer: PeerId,
+        request_id: String,
         data: Vec<u8>,
     },
     SendResponse {
@@ -163,7 +165,6 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 
     Ok(swarm)
 }
-
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
     mut receiver: mpsc::Receiver<Command>,
@@ -178,6 +179,8 @@ pub async fn network_event_loop(
     swarm.behaviour_mut().gossipsub.subscribe(&topic);
 
     let mut receiver = receiver.fuse();
+
+    let mut ws_data_req_id_sender_mapping: HashMap<String, mpsc::Sender<Vec<u8>>> = HashMap::new();
 
     loop {
         let share_data = data.clone();
@@ -238,6 +241,7 @@ pub async fn network_event_loop(
                         RequestResponseEvent::Message { peer, message },
                     )) => match message {
                         RequestResponseMessage::Request { request, channel, .. } => {
+                            // request is DataExchangeRequest object
                             println!("[libp2p] receive request message: {:?}, channel: {:?}", request, channel);
                             println!("Request from Peer id {:?}", peer);
 
@@ -314,12 +318,16 @@ pub async fn network_event_loop(
                             );
 
                             info!("Send response back to client");
-                            if resp.is_websocket_resp {
-                                warn!("Websocket support is developing");
-                            } else {
                                 let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
                                 sender.send(resp).await.expect("Event receiver not to be dropped.");
-                            }
+                            // if resp.is_websocket_resp {
+                            //     warn!("Websocket support is developing");
+                            //     let sender = ws_data_req_id_sender_mapping.get(&resp.clone().request_id).unwrap();
+                            //     sender.send(resp.clone().body).await.expect("Ws: Event receiver not to be dropped.");
+                            // } else {
+                            //     let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                            //     sender.send(resp).await.expect("Rest: Event receiver not to be dropped.");
+                            // }
                         }
                     }
 
@@ -385,7 +393,7 @@ pub async fn network_event_loop(
                         }
 
                         // Commands for proxy data
-                        Command::SendRequest { peer, data } => {
+                        Command::SendRequest { peer, request_id, data } => {
                             info!("[libp2p] Send request to peer: {}, data: {}", peer.to_string(), String::from_utf8_lossy(&data));
                             swarm.behaviour_mut().request_response.send_request(&peer, DataExchangeRequest{schema: 0, data});
                         }
@@ -432,7 +440,6 @@ pub async fn network_event_loop(
                     }
                     None => {}
                 }
-
             }
         }
     }
@@ -448,10 +455,10 @@ pub struct DataExchangeCodec();
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct DataExchangeRequest {
     pub(crate) schema: u8,
+
     // 0 for InitRequest, 1 for Data
     pub(crate) data: Vec<u8>,
 }
-// pub struct DataExchangeRequest(pub(crate) Vec<u8>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileResponse(pub(crate) Vec<u8>);
