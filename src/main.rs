@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // * processes websocket connection
     // * forward message to network handler with data_sender
     Arbiter::spawn(async move {
-        let mut req_id_addr_mapping: HashMap<String, Addr<ServiceSideWsActor>> = HashMap::new();
+        let mut req_id_ws_addr_mapping: HashMap<String, Addr<ServiceSideWsActor>> = HashMap::new();
         loop {
             futures::select! {
                 evt = event_receiver.next() => {
@@ -171,8 +171,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     info.clone().request_id,
                                     data_sender,
                                 ).await;
-                                req_id_addr_mapping.insert(info.clone().request_id, addr);
-                                info!("ServiceSideGateway: InitWsConn: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), info.clone().request_id);
+                                req_id_ws_addr_mapping.insert(info.clone().request_id, addr);
+                                info!("ServiceSideGateway: InitWsConn: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), info.clone().request_id);
                             }
 
                             network::Event::ProxyDataFromClient {
@@ -184,8 +184,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     data.data.clone()
                                 );
                                 // TODO: Send data to websocket connection
-                                info!("ServiceSideGateway: WsData: req_id_addr_mapping keys: {:?}, request_id: {:?}", req_id_addr_mapping.keys(), data.request_id.clone());
-                                let service_addr = req_id_addr_mapping.get(&data.request_id).unwrap();
+                                info!("ServiceSideGateway: WsData: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), data.request_id.clone());
+                                let service_addr = req_id_ws_addr_mapping.get(&data.request_id).unwrap();
                                 service_addr.do_send(data);
                             }
                             _ => {

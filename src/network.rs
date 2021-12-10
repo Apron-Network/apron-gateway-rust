@@ -236,12 +236,13 @@ pub async fn network_event_loop(
                                         match ws_data_receiver.next().await {
                                             Some(data) => {
                                                 println!("Proxy data received from main loop is {:?}", data);
+                                                let proxy_data: ProxyData = bincode::deserialize(&data).unwrap();
                                                 let resp = HttpProxyResponse{
                                                     is_websocket_resp: true,
                                                     request_id: proxy_request_info.request_id,
                                                     status_code: 200,
                                                     headers: HashMap::new(),
-                                                    body: data,
+                                                    body: proxy_data.data,
                                                 };
                                                 swarm.behaviour_mut()
                                                         .request_response
