@@ -63,6 +63,7 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
             }
         };
 
+
         info!(
             "ServiceSideGateway: Prepare to send data to client {:?}, data: {:?}",
             self.client_peer_id, proxy_data
