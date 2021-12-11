@@ -200,6 +200,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     "ws://localhost:10000",
                                     remote_peer_id,
                                     info.clone().request_id,
+                                    p2p_handler.clone(),
                                     data_sender,
                                 ).await;
                                 req_id_ws_addr_mapping.insert(info.clone().request_id, addr);

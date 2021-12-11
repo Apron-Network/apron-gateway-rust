@@ -187,15 +187,15 @@ pub async fn network_event_loop(
             event = swarm.select_next_some() => {
                 match event {
                     SwarmEvent::NewListenAddr { address, .. } => {
-                        println!("Listening on {}", address);
+                        info!("Listening on {}", address);
                     }
                     SwarmEvent::ConnectionEstablished { peer_id, endpoint,.. } => {
-                        println!("Connected to {} on {}", peer_id, endpoint.get_remote_address());
+                        warn!("Connected to {} on {}", peer_id, endpoint.get_remote_address());
                         let remote_address = endpoint.get_remote_address();
                         swarm.behaviour_mut().kademlia.add_address(&peer_id, remote_address.clone());
                     }
                     SwarmEvent::ConnectionClosed { peer_id,.. } => {
-                        println!("Disconnected from {}", peer_id);
+                        warn!("Disconnected from {}", peer_id);
                         swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
                     }
                     SwarmEvent::Behaviour(ComposedEvent::Gossipsub(
@@ -263,13 +263,17 @@ pub async fn network_event_loop(
                                             data_sender: ws_data_sender,
                                         }).await.expect("Event receiver not to be dropped.");
 
+                                        swarm.behaviour_mut().request_response
+                                                .send_response(channel, FileResponse(vec![]));
+
                                         loop {
                                             futures::select! {
                                                 ws_data = ws_data_receiver.next() => {
                                                     match ws_data {
                                                         Some(ws_data) => {
-                                                            println!("Proxy data received from main loop is {:?}", ws_data);
+                                                            info!("Proxy data received from main loop is {:?}", ws_data);
                                                             let proxy_data: ProxyData = bincode::deserialize(&ws_data).unwrap();
+                                                            info!("Parsed proxy data {:?}", proxy_data);
                                                             let resp = HttpProxyResponse {
                                                                 is_websocket_resp: true,
                                                                 request_id: proxy_request_info.clone().request_id,
@@ -278,11 +282,19 @@ pub async fn network_event_loop(
                                                                 body: proxy_data.data,
                                                             };
 
-                                                            // TODO: Compile error says channel has been moved.
-                                                                swarm.behaviour_mut()
-                                                                    .request_response
-                                                                    .send_response(channel.clone(), FileResponse(bincode::serialize(&resp).unwrap()));
-                                                            }
+        swarm
+            .behaviour_mut()
+            .kademlia
+            .add_address(&peer_id, to_dial.clone());
+        match swarm.dial_addr(to_dial) {
+            Ok(_) => println!("Dialed {:?}", dialing),
+            Err(e) => println!("Dial {:?} failed: {:?}", dialing, e),
+        };                                                            info!("Send data to peer: {:?}", peer);
+
+                                                            swarm.behaviour_mut()
+                                                                .request_response
+                                                                .send_request(&peer, DataExchangeRequest{schema: 2, data: bincode::serialize(&resp).unwrap()});
+                                                        }
                                                         _ => {error!("Got none data")}
                                                     }
 
@@ -309,6 +321,9 @@ pub async fn network_event_loop(
                                         data: proxy_data,
                                     }).await.expect("Event receiver not to be dropped.");
                                 }
+                                2 => {
+                                    info!("Schema 2: Received request data: {:?}", request)
+                                }
                                 _ => { error!("Unknown data schema: {:?}", request.schema)}
                             }
                         }
@@ -334,6 +349,9 @@ pub async fn network_event_loop(
                             //     let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
                             //     sender.send(resp).await.expect("Rest: Event receiver not to be dropped.");
                             // }
+                        }
+                        _ => {
+                            warn!("unknown message: {:?}", message)
                         }
                     }
 
