@@ -20,7 +20,7 @@ use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use libp2p::PeerId;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rand::thread_rng;
 use reqwest::Proxy;
 use serde::de::Unexpected::Str;
@@ -35,7 +35,8 @@ pub(crate) struct ServiceSideWsActor {
     pub(crate) writer: SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>,
     pub(crate) client_peer_id: PeerId,
     pub(crate) request_id: String,
-    pub(crate) data_sender: Sender<Vec<u8>>,
+    pub(crate) p2p_handler: Data<SharedHandler>,
+    pub(crate) data_sender: mpsc::Sender<Vec<u8>>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -63,17 +64,35 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
             }
         };
 
-
         info!(
             "ServiceSideGateway: Prepare to send data to client {:?}, data: {:?}",
             self.client_peer_id, proxy_data
         );
+
         self.data_sender
-            .try_send(bincode::serialize(&proxy_data).unwrap());
+            .try_send(bincode::serialize(&proxy_data).unwrap()).unwrap();
         info!(
             "ServiceSideGateway: Sent data to client {:?}, data: {:?}",
             self.client_peer_id, proxy_data
         );
+
+        // let this: *mut ServiceSideWsActor = &mut *self;
+        // Box::pin(
+        //     async move {
+        //         unsafe {
+        //             warn!("Before forward");
+        //             let mut command_sender = (*this).p2p_handler.command_sender.lock().unwrap();
+        //             command_sender
+        //                 .send(Command::SendRequest {
+        //                     peer: self.client_peer_id,
+        //                     request_id: self.request_id.clone(),
+        //                     data: bincode::serialize(&proxy_data).unwrap(),
+        //                 })
+        //                 .await;
+        //             warn!("After forward");
+        //         }
+        //     }
+        // );
     }
 }
 
