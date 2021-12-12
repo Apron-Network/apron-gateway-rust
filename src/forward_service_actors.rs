@@ -28,6 +28,7 @@ use serde::de::Unexpected::Str;
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::network::Command;
 use crate::state::{set, AppState};
+use crate::Event::ProxyDataFromService;
 use crate::{HttpProxyResponse, SharedHandler, Stream};
 
 // Service side actor, connect to ws service and proxy data between libp2p stream and service
@@ -36,7 +37,8 @@ pub(crate) struct ServiceSideWsActor {
     pub(crate) client_peer_id: PeerId,
     pub(crate) request_id: String,
     pub(crate) p2p_handler: Data<SharedHandler>,
-    pub(crate) data_sender: mpsc::Sender<Vec<u8>>,
+    pub(crate) data_sender: mpsc::Sender<ProxyData>,
+    pub(crate) command_sender: mpsc::Sender<Command>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -69,30 +71,8 @@ impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
             self.client_peer_id, proxy_data
         );
 
-        self.data_sender
-            .try_send(bincode::serialize(&proxy_data).unwrap()).unwrap();
-        info!(
-            "ServiceSideGateway: Sent data to client {:?}, data: {:?}",
-            self.client_peer_id, proxy_data
-        );
-
-        // let this: *mut ServiceSideWsActor = &mut *self;
-        // Box::pin(
-        //     async move {
-        //         unsafe {
-        //             warn!("Before forward");
-        //             let mut command_sender = (*this).p2p_handler.command_sender.lock().unwrap();
-        //             command_sender
-        //                 .send(Command::SendRequest {
-        //                     peer: self.client_peer_id,
-        //                     request_id: self.request_id.clone(),
-        //                     data: bincode::serialize(&proxy_data).unwrap(),
-        //                 })
-        //                 .await;
-        //             warn!("After forward");
-        //         }
-        //     }
-        // );
+        // Send data to main loop
+        self.data_sender.try_send(proxy_data);
     }
 }
 
@@ -132,7 +112,7 @@ impl Actor for ClientSideWsActor {
             peer: self.service_peer_id,
             request_id: self.req_info.clone().request_id,
             data: bincode::serialize(&self.req_info).unwrap(),
-        }));
+        })).unwrap();
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -161,7 +141,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
         block_on(command_sender.send(Command::SendProxyData {
             peer: self.service_peer_id,
             data: bincode::serialize(&proxy_data).unwrap(),
-        }));
+        })).unwrap();
+
         info!(
             "ClientSideGateway: Sent data to service {:?}, data: {:?}",
             self.service_peer_id, proxy_data

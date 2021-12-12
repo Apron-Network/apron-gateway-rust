@@ -20,7 +20,7 @@ pub struct ProxyRequestInfo {
     pub(crate) is_websocket: bool,
 }
 
-#[derive(actix::Message, Debug, Serialize, Deserialize)]
+#[derive(actix::Message, Debug, Serialize, Deserialize, Clone)]
 #[rtype(result = "()")]
 pub struct ProxyData {
     pub(crate) request_id: String,
