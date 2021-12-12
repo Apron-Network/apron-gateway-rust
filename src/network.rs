@@ -349,13 +349,18 @@ pub async fn network_event_loop(
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
                         }
                         Command::AddService {args} => {
-                            println!("[Apron Chain] Add service: {:?}", args);
-                            crate::contract::add_service(
-                                opt.ws_endpoint.clone(),
-                                opt.market_contract_addr.clone(),
-                                opt.market_contract_abi.clone(),
-                                args,
-                            );
+                            if opt.market_contract_addr == "" {
+                                println!("[Apron Chain] test for local service, not upload to chain");
+                            }else{
+                                println!("[Apron Chain] Add service: {:?}", args);
+                                crate::contract::add_service(
+                                    opt.ws_endpoint.clone(),
+                                    opt.market_contract_addr.clone(),
+                                    opt.market_contract_abi.clone(),
+                                    args,
+                                );
+                            }
+
                             // crate::contract::add_service(
                             //     "ws://127.0.0.1:9944".to_string(),
                             //     "5FwVe1jsNQociUBV17VZs6SxcWbYy8JjULj9KNuY4gvb43uK".to_string(),
