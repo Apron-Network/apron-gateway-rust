@@ -83,6 +83,10 @@ pub enum Command {
     AddService {
         args: Vec<String>,
     },
+
+    SubmitUsage {
+        args: Vec<String>,
+    },
 }
 
 pub enum Event {
@@ -350,9 +354,9 @@ pub async fn network_event_loop(
                         }
                         Command::AddService {args} => {
                             if opt.market_contract_addr == "" {
-                                println!("[Apron Chain] test for local service, not upload to chain");
+                                println!("[Apron Chain] test for local add new service, not upload to chain");
                             }else{
-                                println!("[Apron Chain] Add service: {:?}", args);
+                                println!("[Apron Chain] Add Service: {:?}", args);
                                 crate::contract::add_service(
                                     opt.ws_endpoint.clone(),
                                     opt.market_contract_addr.clone(),
@@ -367,6 +371,19 @@ pub async fn network_event_loop(
                             //     "./release/services_market.json".to_string(),
                             //     args,
                             // );
+                        }
+                        Command::SubmitUsage{args} => {
+                            if opt.stat_contract_addr == "" {
+                                println!("[Apron Chain] test for local submit usage service, not upload to chain");
+                            }else{
+                                println!("[Apron Chain] Submit Userage: {:?}", args);
+                                crate::contract::submit_usage(
+                                    opt.ws_endpoint.clone(),
+                                    opt.stat_contract_addr.clone(),
+                                    opt.stat_contract_abi.clone(),
+                                    args,
+                                );
+                            }
                         }
                     }
                     None => {}

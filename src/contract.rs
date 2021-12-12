@@ -10,18 +10,52 @@ use crate::service::ApronService;
 const SURI: &str = "0xe40891ed4fa2eb6b8b89b1d641ae72e8c1ba383d809eeba64131b37bf0aa3898";
 const GAS_LIMIT: u64 = 50000000000;
 
+pub fn submit_usage(
+    ws_endpoint: String,
+    stats_contract_addr: String,
+    stats_contract_abi: String,
+    args: Vec<String>,
+) {
+    let result = exec(
+        ws_endpoint,
+        stats_contract_addr,
+        stats_contract_abi,
+        String::from("submit_usage"),
+        args,
+        // vec![
+        //     format!("\"{}\"", uuid),    //service_uuid
+        //     String::from("0"),          //nonce
+        //     format!("\"{}\"", "test1"), //user_key
+        //     String::from("12345678"),   //start_time
+        //     String::from("12345678"),   //end_time
+        //     String::from("12345678"),   //usage
+        //     format!("\"{}\"", "test1"), //price_plan
+        //     String::from("12345678"),   //cost
+        // ],
+    );
+    println!("result: {:?}", result);
+    assert!(result.is_ok());
+    match result {
+        Ok(r) => {
+            println!("exec result: {}", r)
+        }
+        Err(e) => {
+            println!("exec err: {}", e)
+        }
+    }
+}
+
 pub fn add_service(
     ws_endpoint: String,
     market_contract_addr: String,
-    market_api_path: String,
+    market_contract_abi: String,
     args: Vec<String>,
 ) {
     println!("add_service");
-    const uuid: &'static str = "1";
     let result = exec(
         ws_endpoint,
         market_contract_addr,
-        market_api_path,
+        market_contract_abi,
         String::from("add_service"),
         args,
     );
