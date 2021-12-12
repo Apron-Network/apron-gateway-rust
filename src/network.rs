@@ -243,10 +243,14 @@ pub async fn network_event_loop(
                                         let tmp_base = "http://localhost:8923/anything";
                                         let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
 
+                                        swarm.behaviour_mut()
+                                                    .request_response
+                                                    .send_response(channel, FileResponse(vec![1,2,3])).unwrap();
+
                                         // Send resp to client side gateway
                                         swarm.behaviour_mut()
                                                 .request_response
-                                                .send_response(channel, FileResponse(bincode::serialize(&resp).unwrap())).unwrap();
+                                                .send_request(&peer, DataExchangeRequest{schema: 3, data:bincode::serialize(&resp).unwrap()});
                                     }
                                 }
                                 1 => {
@@ -263,7 +267,7 @@ pub async fn network_event_loop(
                                     }).await.expect("Event receiver not to be dropped.");
                                 }
                                 2 => {
-                                    info!("Schema 2: Received request data: {:?}", request);
+                                    info!("Received ws data from service: {:?}", request);
                                     swarm.behaviour_mut()
                                             .request_response
                                             .send_response(channel, FileResponse(vec![1,2,3])).unwrap();
@@ -278,6 +282,15 @@ pub async fn network_event_loop(
                                         headers: HashMap::new(),
                                         body: proxy_data.clone().data,
                                     }).await.expect("Event receiver not to be dropped.");
+                                }
+                                3 => {
+                                    info!("Received http data from service: {:?}", request);
+                                    swarm.behaviour_mut()
+                                            .request_response
+                                            .send_response(channel, FileResponse(vec![1,2,3])).unwrap();
+                                    let resp: HttpProxyResponse = bincode::deserialize(&request.data).unwrap();
+                                    let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
+                                    sender.send(resp).await.expect("Event receiver not to be dropped.");
                                 }
                                 _ => { error!("Unknown data schema: {:?}", request.schema)}
                             }
@@ -404,8 +417,9 @@ pub struct DataExchangeRequest {
     pub(crate) schema: u8,
 
     // 0 for InitRequest sent from client
-    // 1 for data sent from client side
-    // 2 for data sent from service side
+    // 1 for ws data sent from client side
+    // 2 for ws data sent from service side
+    // 3 for http data sent from service side
     pub(crate) data: Vec<u8>,
 }
 
