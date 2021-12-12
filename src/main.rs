@@ -1,6 +1,7 @@
 use actix_cors::Cors;
 use std::collections::HashMap;
 use std::error::Error;
+use std::io::Write;
 use std::sync::Mutex;
 use std::task;
 
@@ -10,17 +11,19 @@ use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
 use async_std::task::block_on;
 use awc::http::header::fmt_comma_delimited;
 use awc::http::Uri;
+use env_logger::{Builder, Env};
 use futures::channel::{mpsc, oneshot};
 use futures::prelude::*;
+use libp2p::core::network::Peer;
 use libp2p::gossipsub::Topic;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
-use log::info;
+use log::{info, warn};
 use serde::de::Unexpected::Str;
 use structopt::StructOpt;
 
 use crate::forward_service_actors::ServiceSideWsActor;
 // use crate::event_loop::EventLoop;
-use crate::forward_service_models::HttpProxyResponse;
+use crate::forward_service_models::{HttpProxyResponse, ProxyData};
 use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
 use crate::network::{Command, DataExchangeRequest, Event};
 use crate::routes::routes;
@@ -91,9 +94,15 @@ pub struct Opt {
     stat_contract_abi: String,
 }
 
+fn init_logger() {
+    Builder::from_env(Env::default())
+        .format_timestamp_nanos()
+        .init()
+}
+
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    init_logger();
     let opt = Opt::from_args();
 
     let mut swarm = network::new(opt.secret_key_seed).await.unwrap();
@@ -126,7 +135,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let peer_id = swarm.local_peer_id().clone();
 
-    let (command_sender, command_receiver) = mpsc::channel(0);
+    let (mut command_sender, command_receiver) = mpsc::channel(0);
     let (event_sender, mut event_receiver) = mpsc::channel(0);
 
     let data = new_state::<ApronService>();
@@ -147,7 +156,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let p2p_handler = Data::new(SharedHandler {
-        command_sender: Mutex::new(command_sender),
+        command_sender: Mutex::new(command_sender.clone()),
         // event_reciver: Mutex::new(event_receiver),
     });
 
@@ -180,28 +189,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // * forward message to network handler with data_sender
     Arbiter::spawn(async move {
         let mut req_id_ws_addr_mapping: HashMap<String, Addr<ServiceSideWsActor>> = HashMap::new();
+        let (data_sender, mut ws_data_receiver): (
+            mpsc::Sender<ProxyData>,
+            mpsc::Receiver<ProxyData>,
+        ) = mpsc::channel(0);
+        let mut remote_peer_id2: Option<PeerId> = None;
         loop {
             futures::select! {
                 evt = event_receiver.next() => {
-                    info!("Receive event: {:#?}", evt);
+                    info!("main: Receive event: {:?}", evt);
                     match evt {
                         Some(evt) => match evt {
                             network::Event::ProxyRequestToMainLoop {
                                 info,
                                 remote_peer_id,
-                                data_sender,
                             } => {
                                 info!(
                                     "ServiceSideGateway: Proxy request received is {:?}",
                                     info.clone().request_id
                                 );
+                                remote_peer_id2 = Some(remote_peer_id.clone());
                                 // TODO: Get ws url from saved service info
                                 let addr = connect_to_ws_service(
                                     "ws://localhost:10000",
                                     remote_peer_id,
                                     info.clone().request_id,
                                     p2p_handler.clone(),
-                                    data_sender,
+                                    data_sender.clone(),
+                                    command_sender.clone(),
                                 ).await;
                                 req_id_ws_addr_mapping.insert(info.clone().request_id, addr);
                                 info!("ServiceSideGateway: InitWsConn: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), info.clone().request_id);
@@ -223,14 +238,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             network::Event::ProxyDataFromService {
                                 data,
                             } => {
-                            }
-                            _ => {
-                                info!("Receive event 1: {:#?}", evt);
+                                info!("ServiceSideGateway: ProxyDataFromService: {:?}", data)
                             }
                         }
                         _ => {
                             info!("Receive event 2: {:#?}", evt);
                         }
+                    }
+                }
+                proxy_data = ws_data_receiver.next() => {
+                    match proxy_data {
+                        Some(proxy_data) => {
+                        info!("Msg received in main loop: {:?}", proxy_data.clone());
+                        command_sender.send(Command::SendProxyDataFromService {
+                            peer: remote_peer_id2.unwrap(),
+                            request_id: proxy_data.clone().request_id,
+                            data: bincode::serialize(&proxy_data).unwrap(),
+                        }).await.unwrap();
+                        }
+                        _ => {}
                     }
                 }
             }

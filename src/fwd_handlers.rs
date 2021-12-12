@@ -144,23 +144,20 @@ pub(crate) async fn forward_ws_proxy_request(
                 info!("ClientSideWsActor: Receive msg data from p2p channel: {:?}", msg);
                 match msg {
                     Some(msg) => match msg {
-                            HttpProxyResponse {
-                                is_websocket_resp,
-                                request_id,
-                                status_code,
-                                headers,
-                                body,
-                            } => {
-                                info!("ClientSideWsActor: ProxyData: {:?}", body.clone());
-                                addr.do_send(ProxyData{
-                                    request_id: "".to_string(),
-                                    is_binary: false,
-                                    data: body,
-                                });
-                            }
-                            _ => {
-                                info!("ClientSideWsActor: Receive msg 1: {:#?}", msg);
-                            }
+                        HttpProxyResponse {
+                            is_websocket_resp,
+                            request_id,
+                            status_code,
+                            headers,
+                            body,
+                        } => {
+                            info!("ClientSideWsActor: data: {:?}", body.clone());
+                            addr.do_send(ProxyData{
+                                request_id: "".to_string(),
+                                is_binary: false,
+                                data: body,
+                            });
+                        }
                     }
                     _ => {
                         info!("ClientSideWsActor: Receive msg 2: {:#?}", msg);

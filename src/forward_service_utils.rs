@@ -22,7 +22,7 @@ use crate::forward_service_actors::ServiceSideWsActor;
 use crate::forward_service_models::ProxyRequestInfo;
 use crate::network::Command;
 use crate::stream::StreamExt;
-use crate::{forward_service_actors, HttpProxyResponse, PeerId, SharedHandler};
+use crate::{forward_service_actors, Event, HttpProxyResponse, PeerId, SharedHandler, ProxyData};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -143,7 +143,8 @@ pub(super) async fn connect_to_ws_service(
     remote_peer_id: PeerId,
     request_id: String,
     p2p_handler: web::Data<SharedHandler>,
-    data_sender: mpsc::Sender<Vec<u8>>
+    data_sender: mpsc::Sender<ProxyData>,
+    command_sender: mpsc::Sender<Command>,
 ) -> Addr<ServiceSideWsActor> {
     let (resp, framed) = Client::new()
         .ws(service_uri.parse::<Uri>().unwrap())
@@ -162,6 +163,7 @@ pub(super) async fn connect_to_ws_service(
             request_id,
             p2p_handler,
             data_sender,
+            command_sender,
         }
     })
 }
