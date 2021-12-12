@@ -24,9 +24,9 @@ use url::Url;
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
 use crate::forward_service_utils::send_http_request_blocking;
-use crate::helpers;
 use crate::service::ApronService;
 use crate::state::{delete, get, set, AppState};
+use crate::{helpers, Opt};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -78,6 +78,10 @@ pub enum Command {
     Dial {
         peer: PeerId,
         peer_addr: Multiaddr,
+    },
+
+    AddService {
+        args: Vec<String>,
     },
 }
 
@@ -146,6 +150,7 @@ pub async fn network_event_loop(
     mut event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
     req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
+    opt: Opt,
 ) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
@@ -342,6 +347,21 @@ pub async fn network_event_loop(
                         }
                         Command::SendResponse { data, channel} => {
                             swarm.behaviour_mut().request_response.send_response( channel, FileResponse(data));
+                        }
+                        Command::AddService {args} => {
+                            println!("[Apron Chain] Add service: {:?}", args);
+                            crate::contract::add_service(
+                                opt.ws_endpoint.clone(),
+                                opt.market_contract_addr.clone(),
+                                opt.market_contract_abi.clone(),
+                                args,
+                            );
+                            // crate::contract::add_service(
+                            //     "ws://127.0.0.1:9944".to_string(),
+                            //     "5FwVe1jsNQociUBV17VZs6SxcWbYy8JjULj9KNuY4gvb43uK".to_string(),
+                            //     "./release/services_market.json".to_string(),
+                            //     args,
+                            // );
                         }
                     }
                     None => {}
