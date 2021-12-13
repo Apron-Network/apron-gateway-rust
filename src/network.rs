@@ -1,15 +1,12 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::hash::Hash;
 use std::iter;
 
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
-use awc::http::Uri;
-use awc::Client;
 use bincode;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed, ProtocolName};
@@ -24,7 +21,6 @@ use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
 use crate::forward_service_utils::send_http_request_blocking;
@@ -75,7 +71,7 @@ pub enum Command {
         request_id: String,
         data: Vec<u8>,
     },
-    SendProxyDataFromService{
+    SendProxyDataFromService {
         peer: PeerId,
         request_id: String,
         data: Vec<u8>,
@@ -169,7 +165,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 }
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
-    mut receiver: mpsc::Receiver<Command>,
+    receiver: mpsc::Receiver<Command>,
     mut event_sender: mpsc::Sender<Event>,
     data: AppState<ApronService>,
     req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
@@ -181,8 +177,6 @@ pub async fn network_event_loop(
     swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
 
     let mut receiver = receiver.fuse();
-
-    let mut ws_data_req_id_sender_mapping: HashMap<String, mpsc::Sender<Vec<u8>>> = HashMap::new();
 
     loop {
         let share_data = data.clone();
@@ -330,25 +324,6 @@ pub async fn network_event_loop(
 
                         RequestResponseMessage::Response { request_id, response, } => {
                             info!("[libp2p] receive response message: {:?}, req_id: {:?}", response, request_id);
-                            // let resp: HttpProxyResponse = bincode::deserialize(&response.0).unwrap();
-                            // println!(
-                            //     "receive request {:?} Ack from {:?}: {:?}",
-                            //     request_id,
-                            //     peer,
-                            //     resp
-                            // );
-                            //
-                            // info!("Send response back to client");
-                            //     let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
-                            //     sender.send(resp).await.expect("Event receiver not to be dropped.");
-                            // if resp.is_websocket_resp {
-                            //     warn!("Websocket support is developing");
-                            //     let sender = ws_data_req_id_sender_mapping.get(&resp.clone().request_id).unwrap();
-                            //     sender.send(resp.clone().body).await.expect("Ws: Event receiver not to be dropped.");
-                            // } else {
-                            //     let mut sender = get(req_id_client_session_mapping.clone(), resp.clone().request_id).unwrap();
-                            //     sender.send(resp).await.expect("Rest: Event receiver not to be dropped.");
-                            // }
                         }
                     }
 

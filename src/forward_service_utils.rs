@@ -1,28 +1,23 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
-use std::sync::{Mutex, MutexGuard};
 
 use actix::io::SinkWrite;
 use actix::{Actor, Addr, StreamHandler};
-use actix_web::web::{head, Data};
 use actix_web::{web, HttpRequest};
-use actix_web_actors::ws;
 use awc::http::{HeaderName, Uri};
-use awc::{Client, ClientRequest};
+use awc::Client;
 use futures::channel::mpsc;
-use futures::channel::mpsc::Sender;
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::header::HeaderMap;
-use url::Url;
 
 use crate::forward_service_actors::ServiceSideWsActor;
 use crate::forward_service_models::ProxyRequestInfo;
 use crate::network::Command;
 use crate::stream::StreamExt;
-use crate::{forward_service_actors, Event, HttpProxyResponse, PeerId, SharedHandler, ProxyData};
+use crate::{HttpProxyResponse, PeerId, ProxyData, SharedHandler};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,

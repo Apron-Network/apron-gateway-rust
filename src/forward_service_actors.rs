@@ -1,35 +1,26 @@
-use std::future::Future;
 use std::string::String;
-use std::sync::Mutex;
 
 use actix::io::SinkWrite;
 use actix::*;
 use actix_codec::Framed;
 use actix_web::web::{Bytes, Data};
 use actix_web_actors::ws;
-use actix_web_actors::ws::{ProtocolError, WebsocketContext};
+use actix_web_actors::ws::WebsocketContext;
 use awc::error::WsProtocolError;
-use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
 use awc::BoxedSocket;
-use awc::Client;
 use futures::channel::mpsc;
-use futures::channel::mpsc::{Receiver, Sender};
+use futures::channel::mpsc::Sender;
 use futures::executor::block_on;
-use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
-use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use futures::SinkExt;
 use libp2p::PeerId;
-use log::{debug, error, info, warn};
-use rand::thread_rng;
-use reqwest::Proxy;
-use serde::de::Unexpected::Str;
+use log::info;
 
 use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::network::Command;
-use crate::state::{set, AppState};
-use crate::Event::ProxyDataFromService;
-use crate::{HttpProxyResponse, SharedHandler, Stream};
+use crate::state::AppState;
+use crate::{HttpProxyResponse, SharedHandler};
 
 // Service side actor, connect to ws service and proxy data between libp2p stream and service
 pub(crate) struct ServiceSideWsActor {
@@ -112,7 +103,8 @@ impl Actor for ClientSideWsActor {
             peer: self.service_peer_id,
             request_id: self.req_info.clone().request_id,
             data: bincode::serialize(&self.req_info).unwrap(),
-        })).unwrap();
+        }))
+        .unwrap();
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -141,7 +133,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor
         block_on(command_sender.send(Command::SendProxyData {
             peer: self.service_peer_id,
             data: bincode::serialize(&proxy_data).unwrap(),
-        })).unwrap();
+        }))
+        .unwrap();
 
         info!(
             "ClientSideGateway: Sent data to service {:?}, data: {:?}",

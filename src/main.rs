@@ -1,35 +1,25 @@
 use actix_cors::Cors;
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::Write;
 use std::sync::Mutex;
-use std::task;
 
-use actix::{spawn, Addr, Arbiter, ContextFutureSpawner, Response};
-use actix_web::body::{Body, ResponseBody};
-use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
-use async_std::task::block_on;
-use awc::http::header::fmt_comma_delimited;
-use awc::http::Uri;
+use actix::{Addr, Arbiter};
+use actix_web::{web, web::Data, App, HttpServer};
 use env_logger::{Builder, Env};
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::prelude::*;
-use libp2p::core::network::Peer;
-use libp2p::gossipsub::Topic;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
-use log::{info, warn};
-use serde::de::Unexpected::Str;
+use log::info;
 use structopt::StructOpt;
 
 use crate::forward_service_actors::ServiceSideWsActor;
 // use crate::event_loop::EventLoop;
 use crate::forward_service_models::{HttpProxyResponse, ProxyData};
-use crate::forward_service_utils::{connect_to_ws_service, send_http_request_blocking};
-use crate::network::{Command, DataExchangeRequest, Event};
+use crate::forward_service_utils::connect_to_ws_service;
+use crate::network::Command;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
-use crate::state::{get, new_state};
-use crate::Protocol::Http;
+use crate::state::new_state;
 
 use crate::contract::{call, exec};
 
