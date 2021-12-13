@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ptr::null;
 
 use actix::Arbiter;
 use actix_web::web::Data;
@@ -7,19 +6,15 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{Receiver, Sender};
-use futures::prelude::stream::Next;
 use futures::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use uuid::Bytes;
 
 use crate::forward_service_actors::ClientSideWsActor;
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
+use crate::helpers;
 use crate::network::Command;
 use crate::state::{set, AppState};
-use crate::{forward_service_actors, forward_service_utils::parse_request, PeerId, SharedHandler};
-use crate::{helpers, network};
+use crate::{forward_service_utils::parse_request, PeerId, SharedHandler};
 
 fn prepare_for_sending_p2p_transaction(
     query_args: web::Query<HashMap<String, String>>,

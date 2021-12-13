@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use actix_web::web;
 use serde::{Deserialize, Serialize};
 
 // TODO: Can some params be changed to Url

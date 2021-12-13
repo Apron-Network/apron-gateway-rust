@@ -1,17 +1,17 @@
-use crate::helpers::respond_json;
-use crate::network::{Command, Event};
-use crate::state::{all, set, AppState};
-use actix_web::web::{Data, HttpResponse, Json};
-use actix_web::Error;
-use futures::channel::{mpsc, oneshot};
-use futures::SinkExt;
-use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::Mutex;
 
+use actix_web::web::{Data, HttpResponse, Json};
+use actix_web::Error;
+use futures::channel::mpsc;
+use futures::SinkExt;
 use libp2p::PeerId;
-// use serde_derive::Deserialize;
 use serde::Deserialize;
-use std::collections::HashSet;
+use serde::Serialize;
+
+use crate::helpers::respond_json;
+use crate::network::Command;
+use crate::state::{all, set, AppState};
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronServiceProvider {
