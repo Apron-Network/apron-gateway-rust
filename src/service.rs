@@ -13,6 +13,8 @@ use libp2p::PeerId;
 use serde::Deserialize;
 use std::collections::HashSet;
 
+use crate::contract::{add_service, call, exec};
+
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronServiceProvider {
     pub id: Option<String>,
@@ -43,6 +45,54 @@ pub struct ApronService {
 }
 
 impl ApronService {
+    // service - serviceprovide in a 1-1 relationship
+    pub fn apronservice_to_args(self) -> Vec<String> {
+        let provider = self.providers.unwrap()[0].clone();
+        let created_at = if provider.created_at.is_none() {
+            String::from("123456789")
+        } else {
+            provider.created_at.unwrap().to_string()
+        };
+
+        let provider_name = if provider.name.is_none() {
+            String::from("")
+        } else {
+            provider.name.unwrap().to_string()
+        };
+
+        let schema = if provider.schema.is_none() {
+            String::from("")
+        } else {
+            provider.schema.unwrap().to_string()
+        };
+
+        let extra_detail = if provider.extra_detail.is_none() {
+            String::from("")
+        } else {
+            provider.extra_detail.unwrap().to_string()
+        };
+
+        let price_plan = if self.price_plan.is_none() {
+            String::from("")
+        } else {
+            self.price_plan.unwrap().to_string()
+        };
+
+        vec![
+            format!("\"{}\"", self.id),                   //uuid
+            format!("\"{}\"", self.domain_name.unwrap()), //name
+            format!("\"{}\"", provider.desc.unwrap()),    //desc
+            format!("\"{}\"", String::from("")),          //logo
+            format!("\"{}\"", created_at),                //createTime
+            format!("\"{}\"", provider_name),             //providerName
+            format!("\"{}\"", "5F7Xv7RaJe8BBNULSuRTXWtfn68njP1NqQL5LLf41piRcEJJ"), //providerOwner
+            format!("\"{}\"", String::from("")),          //usage
+            format!("\"{}\"", schema),                    //schema
+            format!("\"{}\"", price_plan),                //pricePlan
+            format!("\"{}\"", extra_detail),              //declaimer
+        ]
+    }
+
     pub fn update(&mut self, other: ApronService) {
         if other.price_plan.is_some() {
             self.price_plan = other.price_plan;
@@ -147,10 +197,25 @@ pub async fn new_update_service(
             .await
             .unwrap();
 
+        command_sender
+            .send(Command::AddService {
+                args: service.clone().apronservice_to_args(),
+            })
+            .await
+            .unwrap();
+
+        // crate::contract::add_service(
+        //     "ws://127.0.0.1:9944".to_string(),
+        //     "5FwVe1jsNQociUBV17VZs6SxcWbYy8JjULj9KNuY4gvb43uK".to_string(),
+        //     "./release/services_market.json".to_string(),
+        //     service.clone().apronservice_to_args(),
+        // );
+
         println!(
             "[mgmt] update service: {}",
             serde_json::to_string(&service).unwrap()
         );
+
         respond_json(service)
     } else {
         new_service.peer_id = Some(local_peer_id.clone().to_base58());
@@ -174,6 +239,20 @@ pub async fn new_update_service(
             "[mgmt] new service: {}",
             serde_json::to_string(&new_service2).unwrap()
         );
+
+        command_sender
+            .send(Command::AddService {
+                args: new_service2.clone().apronservice_to_args(),
+            })
+            .await
+            .unwrap();
+
+        // crate::contract::add_service(
+        //     "ws://127.0.0.1:9944".to_string(),
+        //     "5FwVe1jsNQociUBV17VZs6SxcWbYy8JjULj9KNuY4gvb43uK".to_string(),
+        //     "./release/services_market.json".to_string(),
+        //     new_service2.clone().apronservice_to_args(),
+        // );
 
         respond_json(new_service2)
     }

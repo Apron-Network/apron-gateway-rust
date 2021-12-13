@@ -1,0 +1,3 @@
+[submodule "cargo-contract"]
+	path = cargo-contract
+	url = https://github.com/Apron-Network/cargo-contract.git
