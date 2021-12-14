@@ -86,19 +86,30 @@ impl ApronService {
         } else {
             self.name.unwrap().to_string()
         };
+        let provider_desc = if provider.desc.is_none() {
+            String::from("")
+        } else {
+            provider.desc.unwrap().to_string()
+        };
+
+        let logo = if self.logo.is_none() {
+            String::from("")
+        } else {
+            self.logo.unwrap().to_string()
+        };
 
         vec![
-            format!("\"{}\"", self.id),                //uuid
-            format!("\"{}\"", name),                   //name
-            format!("\"{}\"", provider.desc.unwrap()), //desc
-            format!("\"{}\"", String::from("")),       //logo
-            format!("\"{}\"", created_at),             //createTime
-            format!("\"{}\"", provider_name),          //providerName
+            format!("\"{}\"", self.id),       //uuid
+            format!("\"{}\"", name),          //name
+            format!("\"{}\"", provider_desc), //desc
+            format!("\"{}\"", logo),          //logo
+            format!("\"{}\"", created_at),    //createTime
+            format!("\"{}\"", provider_name), //providerName
             format!("\"{}\"", "5F7Xv7RaJe8BBNULSuRTXWtfn68njP1NqQL5LLf41piRcEJJ"), //providerOwner
-            format!("\"{}\"", String::from("")),       //usage
-            format!("\"{}\"", schema),                 //schema
-            format!("\"{}\"", price_plan),             //pricePlan
-            format!("\"{}\"", extra_detail),           //declaimer
+            format!("\"{}\"", String::from("")), //usage
+            format!("\"{}\"", schema),        //schema
+            format!("\"{}\"", price_plan),    //pricePlan
+            format!("\"{}\"", extra_detail),  //declaimer
         ]
     }
 
