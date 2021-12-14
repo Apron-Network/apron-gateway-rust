@@ -81,9 +81,15 @@ impl ApronService {
             self.price_plan.unwrap().to_string()
         };
 
+        let name = if self.name.is_none() {
+            String::from("")
+        } else {
+            self.name.unwrap().to_string()
+        };
+
         vec![
             format!("\"{}\"", self.id),                //uuid
-            format!("\"{}\"", self.name.unwrap()),     //name
+            format!("\"{}\"", name),                   //name
             format!("\"{}\"", provider.desc.unwrap()), //desc
             format!("\"{}\"", String::from("")),       //logo
             format!("\"{}\"", created_at),             //createTime
