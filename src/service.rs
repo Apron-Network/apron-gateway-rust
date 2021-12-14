@@ -32,8 +32,11 @@ pub struct ApronService {
     pub peer_id: Option<String>,
     // Uniq id for service, will be generated automatically
     pub id: String,
-    // hostname provides this service, will be used to search service while forwarding requesting.
-    pub domain_name: Option<String>,
+
+    pub name: Option<String>,
+    pub desc: Option<String>,
+    pub logo: Option<String>,
+    pub usage: Option<String>,
 
     pub providers: Option<Vec<ApronServiceProvider>>,
 
@@ -79,17 +82,17 @@ impl ApronService {
         };
 
         vec![
-            format!("\"{}\"", self.id),                   //uuid
-            format!("\"{}\"", self.domain_name.unwrap()), //name
-            format!("\"{}\"", provider.desc.unwrap()),    //desc
-            format!("\"{}\"", String::from("")),          //logo
-            format!("\"{}\"", created_at),                //createTime
-            format!("\"{}\"", provider_name),             //providerName
+            format!("\"{}\"", self.id),                //uuid
+            format!("\"{}\"", self.name.unwrap()),     //name
+            format!("\"{}\"", provider.desc.unwrap()), //desc
+            format!("\"{}\"", String::from("")),       //logo
+            format!("\"{}\"", created_at),             //createTime
+            format!("\"{}\"", provider_name),          //providerName
             format!("\"{}\"", "5F7Xv7RaJe8BBNULSuRTXWtfn68njP1NqQL5LLf41piRcEJJ"), //providerOwner
-            format!("\"{}\"", String::from("")),          //usage
-            format!("\"{}\"", schema),                    //schema
-            format!("\"{}\"", price_plan),                //pricePlan
-            format!("\"{}\"", extra_detail),              //declaimer
+            format!("\"{}\"", String::from("")),       //usage
+            format!("\"{}\"", schema),                 //schema
+            format!("\"{}\"", price_plan),             //pricePlan
+            format!("\"{}\"", extra_detail),           //declaimer
         ]
     }
 
@@ -103,11 +106,20 @@ impl ApronService {
         if other.peer_id.is_some() {
             self.peer_id = other.peer_id;
         }
-        if other.domain_name.is_some() {
-            self.domain_name = other.domain_name;
+        if other.name.is_some() {
+            self.name = other.name;
         }
         if other.is_deleted.is_some() {
             self.is_deleted = other.is_deleted;
+        }
+        if other.desc.is_some() {
+            self.desc = other.desc;
+        }
+        if other.logo.is_some() {
+            self.logo = other.logo;
+        }
+        if other.usage.is_some() {
+            self.usage = other.usage;
         }
         // update ApronServiceProvider
         if other.providers.is_some() {
