@@ -1,22 +1,20 @@
 use std::collections::HashMap;
 
+use actix::Arbiter;
 use actix_web::web::Data;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{Receiver, Sender};
 use futures::{SinkExt, StreamExt};
-use log::{debug, info, warn, error};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use uuid::Bytes;
+use log::{debug, error, info, warn};
 
 use crate::forward_service_actors::ClientSideWsActor;
-use crate::forward_service_models::{HttpProxyResponse, ProxyRequestInfo};
+use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
 use crate::helpers;
 use crate::network::Command;
 use crate::state::{set, AppState};
-use crate::{forward_service_actors, forward_service_utils::parse_request, PeerId, SharedHandler};
+use crate::{forward_service_utils::parse_request, PeerId, SharedHandler};
 
 fn prepare_for_sending_p2p_transaction(
     query_args: web::Query<HashMap<String, String>>,
@@ -71,6 +69,7 @@ pub(crate) async fn forward_http_proxy_request(
     command_sender
         .send(Command::SendRequest {
             peer: remote_peer_id,
+            request_id: req_info.clone().request_id,
             data: bincode::serialize(&req_info).unwrap(),
         })
         .await
@@ -90,7 +89,6 @@ pub(crate) async fn forward_http_proxy_request(
 
 pub(crate) async fn forward_ws_proxy_request(
     query_args: web::Query<HashMap<String, String>>,
-    // raw_body: web::Bytes,    // web::Bytes here may causes request parsing blocking, remove it for now
     req: HttpRequest,
     stream: web::Payload,
     p2p_handler: Data<SharedHandler>,
@@ -105,7 +103,7 @@ pub(crate) async fn forward_ws_proxy_request(
     info!("ClientSideGateway: Req info: {:?}", req_info);
     info!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
-    let (resp_sender, resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
+    let (resp_sender, mut resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
         mpsc::channel(0);
 
     // Save mapping between request_id and response sender,
@@ -122,15 +120,54 @@ pub(crate) async fn forward_ws_proxy_request(
     );
 
     // Create websocket session between ClientSideGateway and Client
-    ws::start(
-        ClientSideWsActor {
-            req_info,
-            remote_peer_id,
-            p2p_handler,
-        },
-        &req,
-        stream,
-    )
+    let client_ws_actor = ClientSideWsActor {
+        req_info,
+        service_peer_id: remote_peer_id,
+        p2p_handler,
+        request_id_client_session_mapping,
+    };
+    // TODO: Verify whether it is possible to add function to set actor in, and check whether it can pass lifetime check
+    let foo = ws::start_with_addr(client_ws_actor, &req, stream).unwrap();
+    let addr = foo.0;
+
+    Arbiter::spawn(async move {
+        warn!("Spawn resp receiver");
+        loop {
+            warn!("Msg Receiver Loop");
+            futures::select! {
+            msg = resp_receiver.next() => {
+                info!("ClientSideWsActor: Receive msg data from p2p channel: {:?}", msg);
+                match msg {
+                    Some(msg) => match msg {
+                        HttpProxyResponse {
+                            is_websocket_resp,
+                            request_id,
+                            status_code,
+                            headers,
+                            body,
+                        } => {
+                            info!("ClientSideWsActor: data: {:?}", body.clone());
+                            addr.do_send(ProxyData{
+                                request_id: "".to_string(),
+                                is_binary: false,
+                                data: body,
+                            });
+                        }
+                    }
+                    _ => {
+                        info!("ClientSideWsActor: Receive msg 2: {:#?}", msg);
+                    }
+                }
+            },
+            complete => {
+                error!("ClientSideWsActor: Future select exit");
+                break;
+            },
+            }
+        }
+    });
+
+    foo.1
 
     // let proxy_resp = resp_receiver.recv().unwrap();
     //

@@ -1,11 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::web;
 use serde::{Deserialize, Serialize};
-
-#[derive(actix::Message, Debug)]
-#[rtype(result = "()")]
-pub struct TestWsMsg(pub String);
 
 // TODO: Can some params be changed to Url
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -24,15 +19,17 @@ pub struct ProxyRequestInfo {
     pub(crate) is_websocket: bool,
 }
 
-#[derive(actix::Message, Debug, Serialize, Deserialize)]
+#[derive(actix::Message, Debug, Serialize, Deserialize, Clone)]
 #[rtype(result = "()")]
 pub struct ProxyData {
-    pub(crate) channel_id: String,
+    pub(crate) request_id: String,
+    pub(crate) is_binary: bool,
     pub(crate) data: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HttpProxyResponse {
+    pub(crate) is_websocket_resp: bool,
     pub(crate) request_id: String,
     pub(crate) status_code: u16,
     pub(crate) headers: HashMap<String, Vec<u8>>,

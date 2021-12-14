@@ -1,29 +1,35 @@
+use std::string::String;
+
 use actix::io::SinkWrite;
 use actix::*;
 use actix_codec::Framed;
-use actix_web::web::Data;
+use actix_web::web::{Bytes, Data};
 use actix_web_actors::ws;
+use actix_web_actors::ws::WebsocketContext;
 use awc::error::WsProtocolError;
-use awc::http::Uri;
 use awc::ws::{Codec, Frame, Message};
 use awc::BoxedSocket;
-use awc::Client;
+use futures::channel::mpsc;
+use futures::channel::mpsc::Sender;
 use futures::executor::block_on;
-use futures::lock::MutexGuard;
 use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
+use futures::SinkExt;
 use libp2p::PeerId;
-use log::{debug, error, info};
+use log::info;
 
-use crate::forward_service_models::{ProxyData, ProxyRequestInfo, TestWsMsg};
-use crate::mpsc::Sender;
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
 use crate::network::Command;
-use crate::SharedHandler;
+use crate::state::AppState;
+use crate::{HttpProxyResponse, SharedHandler};
 
-// Service side actor
+// Service side actor, connect to ws service and proxy data between libp2p stream and service
 pub(crate) struct ServiceSideWsActor {
     pub(crate) writer: SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>,
-    pub(crate) addr: Addr<ClientSideWsActor>,
+    pub(crate) client_peer_id: PeerId,
+    pub(crate) request_id: String,
+    pub(crate) p2p_handler: Data<SharedHandler>,
+    pub(crate) data_sender: mpsc::Sender<ProxyData>,
+    pub(crate) command_sender: mpsc::Sender<Command>,
 }
 
 impl Actor for ServiceSideWsActor {
@@ -34,35 +40,55 @@ impl Actor for ServiceSideWsActor {
 impl StreamHandler<Result<Frame, WsProtocolError>> for ServiceSideWsActor {
     fn handle(&mut self, msg: Result<Frame, WsProtocolError>, ctx: &mut Self::Context) {
         info!("Received service side message: {:?}", msg);
-        // TODO: Send message back to client ws session
-        if let Ok(Frame::Text(txt)) = msg {
-            let proxy_msg = ProxyData {
-                channel_id: "".to_string(),
-                data: txt.to_vec(),
-            };
-            self.addr.do_send(proxy_msg);
-        }
 
-        ()
+        let proxy_data = match msg {
+            Ok(Frame::Text(text_msg)) => ProxyData {
+                request_id: self.request_id.clone(),
+                is_binary: false,
+                data: text_msg.to_vec(),
+            },
+            Ok(Frame::Binary(bin_msg)) => ProxyData {
+                request_id: self.request_id.clone(),
+                is_binary: true,
+                data: bin_msg.to_vec(),
+            },
+            _ => {
+                return;
+            }
+        };
+
+        info!(
+            "ServiceSideGateway: Prepare to send data to client {:?}, data: {:?}",
+            self.client_peer_id, proxy_data
+        );
+
+        // Send data to main loop
+        self.data_sender.try_send(proxy_data);
     }
 }
 
-impl Handler<TestWsMsg> for ServiceSideWsActor {
+impl Handler<ProxyData> for ServiceSideWsActor {
     type Result = ();
 
-    fn handle(&mut self, msg: TestWsMsg, _ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: ProxyData, _ctx: &mut Context<Self>) {
         info!("Message sent to service side: {:?}", msg);
-        self.writer.write(Message::Text(msg.0));
+        if msg.is_binary {
+            self.writer.write(Message::Binary(Bytes::from(msg.data)));
+        } else {
+            self.writer
+                .write(Message::Text(String::from_utf8(msg.data).unwrap()));
+        }
     }
 }
 
 impl actix::io::WriteHandler<WsProtocolError> for ServiceSideWsActor {}
 
-// Client side actor
+// Client side actor, receive message from client side and pass to service side gw with libp2p stream
 pub(crate) struct ClientSideWsActor {
     pub(crate) req_info: ProxyRequestInfo,
-    pub(crate) remote_peer_id: PeerId,
+    pub(crate) service_peer_id: PeerId,
     pub(crate) p2p_handler: Data<SharedHandler>,
+    pub(crate) request_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 }
 
 impl Actor for ClientSideWsActor {
@@ -72,12 +98,13 @@ impl Actor for ClientSideWsActor {
         info!("ClientSideGateway: Started to receive message...");
         let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
 
+        // Block until connect request sent to ServiceSideGateway
         block_on(command_sender.send(Command::SendRequest {
-            peer: self.remote_peer_id,
+            peer: self.service_peer_id,
+            request_id: self.req_info.clone().request_id,
             data: bincode::serialize(&self.req_info).unwrap(),
-        }));
-
-        // TODO: Start mpsc::channel to get data from ProxyData command handler
+        }))
+        .unwrap();
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
@@ -89,70 +116,37 @@ impl Actor for ClientSideWsActor {
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientSideWsActor {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         info!("ClientSideGateway: receive ws msg from client: {:?}", msg);
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Binary(bin)) => {
-                // TODO: Forward the data to service if it is ProxyData
-                // ctx.binary(bin)
-            }
-            Ok(ws::Message::Text(text)) => {
-                // TODO: Build ProxyData and send to client
-                // let msg = ProxyData {
-                //     channel_id: "".to_string(),
-                //     data: Vec::from(text),
-                // };
-                info!("Msg: {:?}", text);
-                ctx.text(text);
-                // TODO: Forward message to service ws client
-                // match &self.addr {
-                //     None => {
-                //         error!("Addr not set");
-                //     }
-                //     Some(addr) => {
-                //         addr.do_send(TestWsMsg(text));
-                //     }
-                // }
-            }
-            _ => (),
-        }
+        let proxy_data = match msg.unwrap() {
+            ws::Message::Text(text_msg) => ProxyData {
+                request_id: self.req_info.request_id.to_string(),
+                is_binary: false,
+                data: text_msg.into_bytes().to_vec(),
+            },
+            ws::Message::Binary(binary_msg) => ProxyData {
+                request_id: self.req_info.request_id.to_string(),
+                is_binary: true,
+                data: binary_msg.to_vec(),
+            },
+            _ => return,
+        };
+        let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
+        block_on(command_sender.send(Command::SendProxyData {
+            peer: self.service_peer_id,
+            data: bincode::serialize(&proxy_data).unwrap(),
+        }))
+        .unwrap();
+
+        info!(
+            "ClientSideGateway: Sent data to service {:?}, data: {:?}",
+            self.service_peer_id, proxy_data
+        );
     }
 }
 
-// Handler for message sent from client side
 impl Handler<ProxyData> for ClientSideWsActor {
     type Result = ();
 
-    fn handle(&mut self, msg: ProxyData, ctx: &mut Self::Context) {
-        println!("Message: {:?}", msg);
-        ctx.binary(msg.data);
+    fn handle(&mut self, msg: ProxyData, ctx: &mut WebsocketContext<Self>) {
+        ctx.text(String::from_utf8(msg.data).unwrap());
     }
-}
-
-async fn connect_to_service(
-    service_uri: &str,
-    addr: Addr<ClientSideWsActor>,
-) -> Addr<ServiceSideWsActor> {
-    let (resp, framed) = Client::new()
-        .ws(service_uri.parse::<Uri>().unwrap())
-        .connect()
-        .await
-        .unwrap();
-
-    println!("Resp: {:?}", resp);
-
-    let (sink, stream) = framed.split();
-    ServiceSideWsActor::create(|ctx| {
-        ServiceSideWsActor::add_stream(stream, ctx);
-        ServiceSideWsActor {
-            writer: SinkWrite::new(sink, ctx),
-            addr: addr,
-        }
-    })
-
-    // ws_client_handler::WsClientToService::create(|ctx| {
-    //     ws_client_handler::WsClientToService::add_stream(stream, ctx);
-    //     ws_client_handler::WsClientToService(SinkWrite::new(sink, ctx))
-    // })
-
-    // addr.do_send(ws_client_handler::TestWsMsg("foobar".to_owned()));
 }

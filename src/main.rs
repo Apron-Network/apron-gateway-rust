@@ -3,27 +3,23 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
 
-use actix::{spawn, Arbiter, ContextFutureSpawner, Response};
-use actix_web::body::{Body, ResponseBody};
-use actix_web::{web, web::Data, App, HttpResponse, HttpServer};
-use async_std::task::block_on;
-use awc::http::header::fmt_comma_delimited;
-use awc::http::Uri;
-use futures::channel::{mpsc, oneshot};
+use actix::{Addr, Arbiter};
+use actix_web::{web, web::Data, App, HttpServer};
+use env_logger::{Builder, Env};
+use futures::channel::mpsc;
 use futures::prelude::*;
-use libp2p::gossipsub::Topic;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
-use serde::de::Unexpected::Str;
+use log::info;
 use structopt::StructOpt;
 
+use crate::forward_service_actors::ServiceSideWsActor;
 // use crate::event_loop::EventLoop;
-use crate::forward_service_models::HttpProxyResponse;
-use crate::forward_service_utils::send_http_request_blocking;
-use crate::network::{Event, FileRequest};
+use crate::forward_service_models::{HttpProxyResponse, ProxyData};
+use crate::forward_service_utils::connect_to_ws_service;
+use crate::network::Command;
 use crate::routes::routes;
 use crate::service::{ApronService, SharedHandler};
-use crate::state::{get, new_state};
-use crate::Protocol::Http;
+use crate::state::new_state;
 
 use crate::contract::{call, exec};
 
@@ -88,9 +84,21 @@ pub struct Opt {
     stat_contract_abi: String,
 }
 
+fn init_logger() {
+    Builder::from_env(Env::default())
+        .format_timestamp_nanos()
+        .init()
+}
+
+fn init_logger() {
+    Builder::from_env(Env::default())
+        .format_timestamp_nanos()
+        .init()
+}
+
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    init_logger();
     let opt = Opt::from_args();
 
     let mut swarm = network::new(opt.secret_key_seed).await.unwrap();
@@ -123,7 +131,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let peer_id = swarm.local_peer_id().clone();
 
-    let (command_sender, command_receiver) = mpsc::channel(0);
+    let (mut command_sender, command_receiver) = mpsc::channel(0);
     let (event_sender, mut event_receiver) = mpsc::channel(0);
 
     let data = new_state::<ApronService>();
@@ -144,7 +152,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     let p2p_handler = Data::new(SharedHandler {
-        command_sender: Mutex::new(command_sender),
+        command_sender: Mutex::new(command_sender.clone()),
         // event_reciver: Mutex::new(event_receiver),
     });
 
@@ -157,31 +165,97 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .start();
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
+    let mgmt_p2p_handler = p2p_handler.clone();
 
     let mgmt_service = HttpServer::new(move || {
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
             .app_data(data.clone())
-            .app_data(p2p_handler.clone())
+            .app_data(mgmt_p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
 
-    // Websocket connect loop
+    // Websocket connect loop, which handles those actions:
+    // * receives message sent from network event handler,
+    // * processes websocket connection
+    // * forward message to network handler with data_sender
     Arbiter::spawn(async move {
-        match event_receiver.next().await {
-            Some(network::Event::ProxyRequestToMainLoop {
-                info,
-                mut data_sender,
-            }) => {
-                println!("Proxy request received is {:?}", info.clone().request_id);
-                // swarm.behaviour_mut().request_response.send_request()
-                data_sender.send(Vec::from("Hello What")).await;
+        let mut req_id_ws_addr_mapping: HashMap<String, Addr<ServiceSideWsActor>> = HashMap::new();
+        let (data_sender, mut ws_data_receiver): (
+            mpsc::Sender<ProxyData>,
+            mpsc::Receiver<ProxyData>,
+        ) = mpsc::channel(0);
+        let mut remote_peer_id2: Option<PeerId> = None;
+        loop {
+            futures::select! {
+                evt = event_receiver.next() => {
+                    info!("main: Receive event: {:?}", evt);
+                    match evt {
+                        Some(evt) => match evt {
+                            network::Event::ProxyRequestToMainLoop {
+                                info,
+                                remote_peer_id,
+                            } => {
+                                info!(
+                                    "ServiceSideGateway: Proxy request received is {:?}",
+                                    info.clone().request_id
+                                );
+                                remote_peer_id2 = Some(remote_peer_id.clone());
+                                // TODO: Get ws url from saved service info
+                                let addr = connect_to_ws_service(
+                                    "ws://localhost:10000",
+                                    remote_peer_id,
+                                    info.clone().request_id,
+                                    p2p_handler.clone(),
+                                    data_sender.clone(),
+                                    command_sender.clone(),
+                                ).await;
+                                req_id_ws_addr_mapping.insert(info.clone().request_id, addr);
+                                info!("ServiceSideGateway: InitWsConn: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), info.clone().request_id);
+                            }
+
+                            network::Event::ProxyDataFromClient {
+                                data,
+                            } => {
+                                info!(
+                                    "ServiceSideGateway: client side proxy data received {:?}",
+                                    data.data.clone()
+                                );
+                                // TODO: Send data to websocket connection
+                                info!("ServiceSideGateway: WsData: req_id_ws_addr_mapping keys: {:?}, request_id: {:?}", req_id_ws_addr_mapping.keys(), data.request_id.clone());
+                                let service_addr = req_id_ws_addr_mapping.get(&data.request_id).unwrap();
+                                service_addr.do_send(data);
+                            }
+
+                            network::Event::ProxyDataFromService {
+                                data,
+                            } => {
+                                info!("ServiceSideGateway: ProxyDataFromService: {:?}", data)
+                            }
+                        }
+                        _ => {
+                            info!("Receive event 2: {:#?}", evt);
+                        }
+                    }
+                }
+                proxy_data = ws_data_receiver.next() => {
+                    match proxy_data {
+                        Some(proxy_data) => {
+                        info!("Msg received in main loop: {:?}", proxy_data.clone());
+                        command_sender.send(Command::SendProxyDataFromService {
+                            peer: remote_peer_id2.unwrap(),
+                            request_id: proxy_data.clone().request_id,
+                            data: bincode::serialize(&proxy_data).unwrap(),
+                        }).await.unwrap();
+                        }
+                        _ => {}
+                    }
+                }
             }
-            _ => {}
         }
     });
 

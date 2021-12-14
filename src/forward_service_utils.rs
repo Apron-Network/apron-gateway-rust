@@ -2,19 +2,22 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::error::Error;
 
-use actix_web::web::head;
+use actix::io::SinkWrite;
+use actix::{Actor, Addr, StreamHandler};
 use actix_web::{web, HttpRequest};
-use actix_web_actors::ws;
-use awc::http::HeaderName;
-use awc::ClientRequest;
+use awc::http::{HeaderName, Uri};
+use awc::Client;
+use futures::channel::mpsc;
 use log::{info, warn};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::header::HeaderMap;
-use url::Url;
 
+use crate::forward_service_actors::ServiceSideWsActor;
 use crate::forward_service_models::ProxyRequestInfo;
-use crate::{forward_service_actors, HttpProxyResponse};
+use crate::network::Command;
+use crate::stream::StreamExt;
+use crate::{HttpProxyResponse, PeerId, ProxyData, SharedHandler};
 
 pub(crate) fn parse_request(
     query_args: web::Query<HashMap<String, String>>,
@@ -115,6 +118,7 @@ pub fn send_http_request_blocking(
         .unwrap();
 
     Ok(HttpProxyResponse {
+        is_websocket_resp: false,
         request_id: req_info.request_id,
         status_code: resp.status().as_u16(),
         headers: {
@@ -129,15 +133,32 @@ pub fn send_http_request_blocking(
 }
 
 // Function connects to websocket service, should only be invoked in service side gateway.
-// pub fn connect_to_ws_service() {
-//     let resp = ws::start(
-//         forward_service_actors::ClientSideWsActor {
-//             service_uri: "ws://localhost:10000",
-//             addr: None,
-//         },
-//         &req,
-//         stream,
-//     );
-//     println!("Resp: {:?}", resp);
-//     resp
-// }
+pub(super) async fn connect_to_ws_service(
+    service_uri: &str,
+    remote_peer_id: PeerId,
+    request_id: String,
+    p2p_handler: web::Data<SharedHandler>,
+    data_sender: mpsc::Sender<ProxyData>,
+    command_sender: mpsc::Sender<Command>,
+) -> Addr<ServiceSideWsActor> {
+    let (resp, framed) = Client::new()
+        .ws(service_uri.parse::<Uri>().unwrap())
+        .connect()
+        .await
+        .unwrap();
+
+    info!("ServiceSideGateway: Resp: {:?}", resp);
+
+    let (sink, stream) = framed.split();
+    ServiceSideWsActor::create(|ctx| {
+        ServiceSideWsActor::add_stream(stream, ctx);
+        ServiceSideWsActor {
+            writer: SinkWrite::new(sink, ctx),
+            client_peer_id: remote_peer_id,
+            request_id,
+            p2p_handler,
+            data_sender,
+            command_sender,
+        }
+    })
+}
