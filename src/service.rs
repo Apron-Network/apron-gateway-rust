@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::helpers::respond_json;
 use crate::network::Command;
-use crate::state::{all, set, AppState};
+use crate::state::{all, set, values, AppState};
 
 use crate::contract::{add_service, call, exec};
 
@@ -209,12 +209,12 @@ pub async fn new_update_service(
     let key = info.id.clone();
     let mut new_service = info.into_inner();
 
-    let service = state::get(data.clone(), key.clone());
+    let service = crate::state::get(data.clone(), key.clone());
     // check create or update
     if service.is_some() {
         let mut service = service.unwrap();
         service.update(new_service);
-        state::set(data, key.clone(), service.clone());
+        crate::state::set(data, key.clone(), service.clone());
 
         // publish data to the whole p2p network
         let mut command_sender = p2p_handler.command_sender.lock().unwrap();
@@ -252,7 +252,7 @@ pub async fn new_update_service(
         let mut new_service2 = new_service.clone();
         new_service2.peer_id = Some(local_peer_id.clone().to_base58());
 
-        state::set(data, key, new_service);
+        crate::state::set(data, key, new_service);
 
         // publish data to the whole p2p network
         let mut command_sender = p2p_handler.command_sender.lock().unwrap();
@@ -294,7 +294,7 @@ pub async fn delete_service(
     p2p_handler: Data<SharedHandler>,
 ) -> HttpResponse {
     let key = info.id.clone();
-    let service = state::delete(data, key.clone());
+    let service = crate::state::delete(data, key.clone());
     match service {
         Some(service) => {
             let mut new_service = service.clone();

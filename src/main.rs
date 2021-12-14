@@ -90,12 +90,6 @@ fn init_logger() {
         .init()
 }
 
-fn init_logger() {
-    Builder::from_env(Env::default())
-        .format_timestamp_nanos()
-        .init()
-}
-
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
