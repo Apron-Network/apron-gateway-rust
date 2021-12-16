@@ -11,10 +11,10 @@ use log::{debug, error, info, warn};
 
 use crate::forward_service_actors::ClientSideWsActor;
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
-use crate::helpers;
 use crate::network::Command;
-use crate::state::{set, AppState};
+use crate::state::{get, set, AppState};
 use crate::{forward_service_utils::parse_request, PeerId, SharedHandler};
+use crate::{helpers, ApronService};
 
 fn prepare_for_sending_p2p_transaction(
     query_args: web::Query<HashMap<String, String>>,
@@ -33,6 +33,7 @@ fn prepare_for_sending_p2p_transaction(
 }
 
 pub(crate) async fn forward_http_proxy_request(
+    service_data: AppState<ApronService>,
     query_args: web::Query<HashMap<String, String>>,
     raw_body: web::Bytes,
     req: HttpRequest,
@@ -45,49 +46,62 @@ pub(crate) async fn forward_http_proxy_request(
     let (req_info, remote_peer_id) =
         prepare_for_sending_p2p_transaction(query_args, raw_body, req, false);
 
-    debug!("ClientSideGateway: Req info: {:?}", req_info);
-    debug!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
+    debug!("All services data in local: {:?}", service_data.clone());
+    let service = get(service_data, req_info.clone().service_id);
+    if service.is_none() {
+        error!("Service {:?} not found", req_info.clone().service_id);
+        HttpResponse::NotFound().body(format!(
+            "Service {:?} not found",
+            req_info.clone().service_id
+        ))
+    } else {
+        debug!("ClientSideGateway: Req info: {:?}", req_info);
+        debug!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
-    let (resp_sender, mut resp_receiver): (Sender<HttpProxyResponse>, Receiver<HttpProxyResponse>) =
-        mpsc::channel(0);
+        let (resp_sender, mut resp_receiver): (
+            Sender<HttpProxyResponse>,
+            Receiver<HttpProxyResponse>,
+        ) = mpsc::channel(0);
 
-    // Save mapping between request_id and response sender,
-    // which will be used to locate correct client session while getting response
-    set(
-        request_id_client_session_mapping.clone(),
-        req_info.clone().request_id,
-        resp_sender.clone(),
-    );
+        // Save mapping between request_id and response sender,
+        // which will be used to locate correct client session while getting response
+        set(
+            request_id_client_session_mapping.clone(),
+            req_info.clone().request_id,
+            resp_sender.clone(),
+        );
 
-    debug!(
-        "ClientSideGateway: Fwd req id mapping: {:?}",
-        request_id_client_session_mapping.as_ref()
-    );
+        debug!(
+            "ClientSideGateway: Fwd req id mapping: {:?}",
+            request_id_client_session_mapping.as_ref()
+        );
 
-    // Send ProxyRequestInfo to service side gateway via stream
-    let mut command_sender = p2p_handler.command_sender.lock().unwrap();
-    command_sender
-        .send(Command::SendRequest {
-            peer: remote_peer_id,
-            request_id: req_info.clone().request_id,
-            data: bincode::serialize(&req_info).unwrap(),
-        })
-        .await
-        .unwrap();
+        // Send ProxyRequestInfo to service side gateway via stream
+        let mut command_sender = p2p_handler.command_sender.lock().unwrap();
+        command_sender
+            .send(Command::SendRequest {
+                peer: remote_peer_id,
+                request_id: req_info.clone().request_id,
+                data: bincode::serialize(&req_info).unwrap(),
+            })
+            .await
+            .unwrap();
 
-    match resp_receiver.next().await {
-        Some(resp) => {
-            info!("Got HttpProxyResponse data");
-            HttpResponse::Ok().body(resp.body)
-        }
-        _ => {
-            error!("Got Non HttpProxyResponse data");
-            HttpResponse::ServiceUnavailable().body("")
+        match resp_receiver.next().await {
+            Some(resp) => {
+                info!("Got HttpProxyResponse data");
+                HttpResponse::Ok().body(resp.body)
+            }
+            _ => {
+                error!("Got Non HttpProxyResponse data");
+                HttpResponse::ServiceUnavailable().body("")
+            }
         }
     }
 }
 
 pub(crate) async fn forward_ws_proxy_request(
+    service_data: AppState<ApronService>,
     query_args: web::Query<HashMap<String, String>>,
     req: HttpRequest,
     stream: web::Payload,

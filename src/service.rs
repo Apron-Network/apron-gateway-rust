@@ -9,11 +9,10 @@ use libp2p::PeerId;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::contract::{add_service, call, exec};
 use crate::helpers::respond_json;
 use crate::network::Command;
 use crate::state::{all, set, values, AppState};
-
-use crate::contract::{add_service, call, exec};
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronServiceProvider {
@@ -161,6 +160,32 @@ impl ApronService {
                 self.providers = other.providers;
             }
         }
+    }
+
+    pub fn get_http_provider(&self) -> Option<String> {
+        self.get_provider(String::from("http"))
+    }
+
+    pub fn get_ws_provider(&self) -> Option<String> {
+        self.get_provider(String::from("ws"))
+    }
+
+    fn get_provider(&self, schema: String) -> Option<String> {
+        let mut rslt: Option<String> = None;
+        if self.providers.is_some() {
+            for p in self.providers.as_ref().unwrap() {
+                if p.schema.is_some() && p.schema.as_ref().unwrap().starts_with(&schema) {
+                    rslt = Option::from(String::from(format!(
+                        "{}://{}",
+                        p.schema.as_ref().unwrap(),
+                        p.base_url.as_ref().unwrap()
+                    )));
+                    break;
+                }
+            }
+        }
+
+        rslt
     }
 }
 

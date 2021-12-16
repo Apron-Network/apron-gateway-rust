@@ -4,6 +4,7 @@ use std::error::Error;
 
 use actix::io::SinkWrite;
 use actix::{Actor, Addr, StreamHandler};
+use actix_web::web::service;
 use actix_web::{web, HttpRequest};
 use awc::http::{HeaderName, Uri};
 use awc::Client;
@@ -32,11 +33,19 @@ pub(crate) fn parse_request(
         .map(char::from)
         .collect();
 
+    let combined_key: String = req.match_info().query("user_key").parse().unwrap();
+    if combined_key.len() < 10 {
+        // TODO: Return 400 to client
+        panic!("user_key field error, should be format of <service_key><user_key>")
+    }
+    let service_id = String::from(&combined_key[..10]);
+    let user_key = String::from(&combined_key[10..]);
+
     let mut req_info = ProxyRequestInfo {
-        service_id: String::from(""), // TODO: Use this id to get service detail in service side gw
+        service_id,
         request_id,
         ver: req.match_info().query("ver").parse().unwrap(),
-        user_key: req.match_info().query("user_key").parse().unwrap(),
+        user_key,
         req_path: req.match_info().query("req_path").parse().unwrap(),
         http_method: req.method().to_string().to_uppercase(),
         headers: Default::default(),
@@ -80,7 +89,7 @@ pub(crate) fn parse_request(
 
 pub fn send_http_request_blocking(
     req_info: ProxyRequestInfo,
-    base_url: Option<&str>,
+    base_url: Option<String>,
 ) -> Result<HttpProxyResponse, Box<dyn Error>> {
     let service_url = match base_url {
         Some(base) => base,

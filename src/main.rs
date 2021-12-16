@@ -143,6 +143,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         data.clone(),
         req_id_client_session_mapping.clone(),
         opt.clone(),
+        data.clone(),
     ));
 
     let p2p_handler = Data::new(SharedHandler {
@@ -151,6 +152,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let fwd_service = forward_service::ForwardService {
+        service_data: data.clone(),
         port: opt.forward_port,
         p2p_handler: p2p_handler.clone(),
         peer_id,

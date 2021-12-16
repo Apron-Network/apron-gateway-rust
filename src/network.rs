@@ -19,7 +19,7 @@ use libp2p::request_response::{
 };
 use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
-use log::{error, info, warn};
+use log::{error, debug, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
@@ -170,6 +170,7 @@ pub async fn network_event_loop(
     data: AppState<ApronService>,
     req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
     opt: Opt,
+    service_data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
     let topic = Topic::new("apron-test-net");
@@ -249,6 +250,9 @@ pub async fn network_event_loop(
                                     info!("ProxyRequestInfo is {:?}", proxy_request_info);
 
                                     let client_side_req_id = proxy_request_info.clone().request_id;
+                                    let service_id = proxy_request_info.clone().service_id;
+                                    debug!("All service data in remote: {:?}", service_data.clone());
+                                    let service = get(service_data.clone(), service_id.clone()).unwrap();
 
                                     if proxy_request_info.clone().is_websocket {
                                         // Running on service side gateway, after receiving websocket request,
@@ -265,9 +269,7 @@ pub async fn network_event_loop(
                                                     .request_response
                                                     .send_response(channel, FileResponse(vec![1,2,3])).unwrap();
                                     } else {
-                                        // TODO: Replace this hard coded base to value fetched from service
-                                        let tmp_base = "http://localhost:8923/anything";
-                                        let resp = send_http_request_blocking(proxy_request_info.clone(), Some(tmp_base)).unwrap();
+                                        let resp = send_http_request_blocking(proxy_request_info.clone(), service.get_http_provider()).unwrap();
 
                                         swarm.behaviour_mut()
                                                     .request_response
