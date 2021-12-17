@@ -103,6 +103,7 @@ pub enum Command {
 #[derive(Debug)]
 pub enum Event {
     ProxyRequestToMainLoop {
+        ws_base: String,
         info: ProxyRequestInfo,
         remote_peer_id: PeerId,
     },
@@ -261,6 +262,7 @@ pub async fn network_event_loop(
                                         info!("Forwarding ws request to main loop");
 
                                         event_sender.send(Event::ProxyRequestToMainLoop{
+                                            ws_base: service.get_ws_provider().unwrap(),
                                             info: proxy_request_info.clone(),
                                             remote_peer_id: peer,
                                         }).await.expect("Event receiver not to be dropped.");

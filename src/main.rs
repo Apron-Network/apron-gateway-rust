@@ -193,6 +193,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     match evt {
                         Some(evt) => match evt {
                             network::Event::ProxyRequestToMainLoop {
+                                ws_base,
                                 info,
                                 remote_peer_id,
                             } => {
@@ -203,7 +204,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 remote_peer_id2 = Some(remote_peer_id.clone());
                                 // TODO: Get ws url from saved service info
                                 let addr = connect_to_ws_service(
-                                    "ws://localhost:10000",
+                                    &ws_base,
                                     remote_peer_id,
                                     info.clone().request_id,
                                     p2p_handler.clone(),
