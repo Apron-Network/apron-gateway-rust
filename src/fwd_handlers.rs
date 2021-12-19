@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use actix::Arbiter;
 use actix_web::web::Data;
@@ -10,7 +11,9 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
 
 use crate::forward_service_actors::ClientSideWsActor;
-use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
+use crate::forward_service_models::{
+    HttpProxyResponse, ProxyData, ProxyRequestInfo, ServiceUsageData,
+};
 use crate::network::Command;
 use crate::state::{get, set, AppState};
 use crate::{forward_service_utils::parse_request, PeerId, SharedHandler};
@@ -83,6 +86,31 @@ pub(crate) async fn forward_http_proxy_request(
                 peer: remote_peer_id,
                 request_id: req_info.clone().request_id,
                 data: bincode::serialize(&req_info).unwrap(),
+            })
+            .await
+            .unwrap();
+
+        let usage_args = ServiceUsageData {
+            service_uuid: service.clone().unwrap().clone().id,
+            nonce: "0".to_string(),
+            user_key: req_info.clone().user_key,
+            start_time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+            end_time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+            usage: "1".to_string(),
+            price_plan: service.clone().unwrap().clone().price_plan.unwrap(),
+            cost: "1".to_string(),
+        };
+        command_sender
+            .send(Command::SubmitUsage {
+                args: usage_args.clone().to_contract_args(),
             })
             .await
             .unwrap();

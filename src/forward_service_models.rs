@@ -35,3 +35,30 @@ pub struct HttpProxyResponse {
     pub(crate) headers: HashMap<String, Vec<u8>>,
     pub(crate) body: Vec<u8>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ServiceUsageData {
+    pub(crate) service_uuid: String,
+    pub(crate) nonce: String,
+    pub(crate) user_key: String,
+    pub(crate) start_time: String,
+    pub(crate) end_time: String,
+    pub(crate) usage: String,
+    pub(crate) price_plan: String,
+    pub(crate) cost: String,
+}
+
+impl ServiceUsageData {
+    pub fn to_contract_args(&self) -> Vec<String> {
+        vec![
+            format!("\"{}\"", self.service_uuid),
+            format!("\"{}\"", self.nonce),
+            format!("\"{}\"", self.user_key),
+            format!("\"{}\"", self.start_time),
+            format!("\"{}\"", self.end_time),
+            format!("\"{}\"", self.usage),
+            format!("\"{}\"", self.price_plan),
+            format!("\"{}\"", self.cost),
+        ]
+    }
+}

@@ -1,4 +1,5 @@
 use std::string::String;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use actix::io::SinkWrite;
 use actix::*;
@@ -17,7 +18,7 @@ use futures::SinkExt;
 use libp2p::PeerId;
 use log::info;
 
-use crate::forward_service_models::{ProxyData, ProxyRequestInfo};
+use crate::forward_service_models::{ProxyData, ProxyRequestInfo, ServiceUsageData};
 use crate::network::Command;
 use crate::state::AppState;
 use crate::{HttpProxyResponse, SharedHandler};
@@ -97,6 +98,29 @@ impl Actor for ClientSideWsActor {
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("ClientSideGateway: Started to receive message...");
         let mut command_sender = self.p2p_handler.command_sender.lock().unwrap();
+        let usage_args = ServiceUsageData {
+            service_uuid: self.req_info.clone().service_id,
+            nonce: "0".to_string(),
+            user_key: self.req_info.clone().user_key,
+            start_time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+            end_time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+            usage: "1".to_string(),
+            price_plan: "".to_string(),
+            cost: "1".to_string(),
+        };
+
+        block_on(command_sender.send(Command::SubmitUsage {
+            args: usage_args.clone().to_contract_args(),
+        }))
+        .unwrap();
 
         // Block until connect request sent to ServiceSideGateway
         block_on(command_sender.send(Command::SendRequest {
