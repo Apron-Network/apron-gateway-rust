@@ -105,7 +105,7 @@ pub(crate) async fn forward_http_proxy_request(
                 .as_micros()
                 .to_string(),
             usage: "1".to_string(),
-            price_plan: service.clone().unwrap().clone().price_plan.unwrap(),
+            price_plan: "test_plan".to_string(),
             cost: "1".to_string(),
         };
         command_sender
