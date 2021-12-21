@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
+use std::time::Duration;
 
 // use async_std::channel;
 use async_std::io;
 use async_trait::async_trait;
 use bincode;
+use cargo_contract::Verbosity::Default;
 use futures::channel::mpsc;
 use futures::prelude::*;
 use futures::{AsyncWriteExt, StreamExt};
@@ -14,12 +16,12 @@ use libp2p::gossipsub::{GossipsubEvent, IdentTopic as Topic, MessageAuthenticity
 use libp2p::kad::record::store::MemoryStore;
 use libp2p::kad::{GetProvidersOk, Kademlia, KademliaEvent, QueryResult};
 use libp2p::request_response::{
-    ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseEvent,
-    RequestResponseMessage, ResponseChannel,
+    ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseConfig,
+    RequestResponseEvent, RequestResponseMessage, ResponseChannel,
 };
 use libp2p::NetworkBehaviour;
 use libp2p::{gossipsub, swarm::SwarmEvent, Multiaddr, PeerId, Swarm};
-use log::{error, debug, info, warn};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
@@ -143,10 +145,14 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
         // subscribes to our topic
         gossipsub.subscribe(&topic).unwrap();
 
+        let mut cfg = RequestResponseConfig::default();
+        cfg.set_request_timeout(Duration::from_secs(60));
+        cfg.set_connection_keep_alive(Duration::from_secs(60));
+
         let request_response = RequestResponse::new(
             DataExchangeCodec(),
             iter::once((DataExchangeProtocol(), ProtocolSupport::Full)),
-            Default::default(),
+            cfg,
         );
         let kademlia = Kademlia::new(local_peer_id, MemoryStore::new(local_peer_id));
 
@@ -164,6 +170,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
 
     Ok(swarm)
 }
+
 pub async fn network_event_loop(
     mut swarm: Swarm<ComposedBehaviour>,
     receiver: mpsc::Receiver<Command>,
