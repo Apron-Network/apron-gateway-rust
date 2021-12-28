@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Listen on all interfaces and whatever port the OS assigns
-// SBP M1 Sounds safer to make this at least configurable
+// SBP M2 Sounds safer to make this at least configurable
     swarm
         .listen_on(
             format!("/ip4/0.0.0.0/tcp/{}", opt.clone().p2p_port)
@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let data = new_state::<ApronService>();
     // let service_peer_mapping = new_state::<PeerId>();
 
-// SBP M1 Should this be made configurable too?
+// SBP M2 Should this be made configurable too?
     let topic = String::from("apron-test-net");
 
     // let req_id_client_session_mapping = Data::new(Mutex::new(mpsc::Sender<HttpProxyResponse>));
@@ -166,7 +166,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mgmt_p2p_handler = p2p_handler.clone();
 
     let mgmt_service = HttpServer::new(move || {
-// SBP M1 Consider less permissive configurations?
+// SBP M2 Consider less permissive configurations?
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
@@ -175,7 +175,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
-// SBP M1 Should this be made configurable too?
+// SBP M2 Should this be made configurable too?
     .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
     .run();
 
@@ -193,7 +193,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         loop {
             futures::select! {
                 evt = event_receiver.next() => {
-// SBP M1 Consider backpressure handling?
+// SBP M2 Consider backpressure handling?
                     info!("main: Receive event: {:?}", evt);
                     match evt {
                         Some(evt) => match evt {
