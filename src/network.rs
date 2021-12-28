@@ -143,6 +143,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
                 .expect("Correct configuration");
 
         // subscribes to our topic
+/// SBP M1 Calls to `unwrap` will crash the process if value is `None`
         gossipsub.subscribe(&topic).unwrap();
 
         let mut cfg = RequestResponseConfig::default();
@@ -187,6 +188,7 @@ pub async fn network_event_loop(
 
     let mut receiver = receiver.fuse();
 
+/// SBP M1 What if events are received faster than they can be processed?
     loop {
         let share_data = data.clone();
         // let share_service_peer_mapping = service_peer_mapping.clone();
