@@ -50,53 +50,18 @@ impl ApronService {
     // service - serviceprovide in a 1-1 relationship
     pub fn apronservice_to_args(self) -> Vec<String> {
         let provider = self.providers.unwrap()[0].clone();
-/// SBP M2 Should use `map` or `and_then`
-        let created_at = if provider.created_at.is_none() {
-            String::from("123456789")
-        } else {
-            provider.created_at.unwrap().to_string()
-        };
 
-        let provider_name = if provider.name.is_none() {
-            String::from("")
-        } else {
-            provider.name.unwrap().to_string()
-        };
+        let created_at = provider
+            .created_at
+            .map_or(String::from("123456789"), |ts| ts.to_string());
 
-        let schema = if provider.schema.is_none() {
-            String::from("")
-        } else {
-            provider.schema.unwrap().to_string()
-        };
-
-        let extra_detail = if provider.extra_detail.is_none() {
-            String::from("")
-        } else {
-            provider.extra_detail.unwrap().to_string()
-        };
-
-        let price_plan = if self.price_plan.is_none() {
-            String::from("")
-        } else {
-            self.price_plan.unwrap().to_string()
-        };
-
-        let name = if self.name.is_none() {
-            String::from("")
-        } else {
-            self.name.unwrap().to_string()
-        };
-        let provider_desc = if provider.desc.is_none() {
-            String::from("")
-        } else {
-            provider.desc.unwrap().to_string()
-        };
-
-        let logo = if self.logo.is_none() {
-            String::from("")
-        } else {
-            self.logo.unwrap().to_string()
-        };
+        let provider_name = provider.name.unwrap_or(String::from(""));
+        let schema = provider.schema.unwrap_or_default();
+        let extra_detail = provider.extra_detail.unwrap_or_default();
+        let price_plan = self.price_plan.unwrap_or_default();
+        let name = self.name.unwrap_or_default();
+        let provider_desc = provider.desc.unwrap_or_default();
+        let logo = self.logo.unwrap_or_default();
 
         vec![
             format!("\"{}\"", self.id),       //uuid
