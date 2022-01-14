@@ -52,8 +52,8 @@ pub struct Opt {
     #[structopt(long)]
     peer: Option<Multiaddr>,
 
-    #[structopt(default_value = "2145", long)]
-    p2p_port: i32,
+    #[structopt(default_value = "/ip4/0.0.0.0/tcp/2145", long)]
+    p2p_addr: String,
 
     #[structopt(default_value = "8080", long)]
     forward_port: i32,
@@ -114,14 +114,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
     };
 
-    // Listen on all interfaces and whatever port the OS assigns
-// SBP M2 Sounds safer to make this at least configurable
     swarm
-        .listen_on(
-            format!("/ip4/0.0.0.0/tcp/{}", opt.clone().p2p_port)
-                .parse()
-                .unwrap(),
-        )
+        .listen_on(opt.clone().p2p_addr.parse().unwrap())
         .unwrap();
 
     let peer_id = swarm.local_peer_id().clone();
