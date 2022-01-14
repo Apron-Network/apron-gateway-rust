@@ -58,8 +58,8 @@ pub struct Opt {
     #[structopt(default_value = "8080", long)]
     forward_port: i32,
 
-    #[structopt(default_value = "8082", long)]
-    mgmt_port: i32,
+    #[structopt(default_value = "0.0.0.0:8082", long)]
+    mgmt_addr: String,
 
     #[structopt(default_value = "apron-test-net", long)]
     rendezvous: String,
@@ -175,8 +175,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .app_data(mgmt_local_peer_id.clone())
             .configure(routes)
     })
-// SBP M2 Should this be made configurable too?
-    .bind(format!("0.0.0.0:{}", opt.mgmt_port))?
+    .bind(opt.mgmt_addr)?
     .run();
 
     // Websocket connect loop, which handles those actions:
