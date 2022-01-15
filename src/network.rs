@@ -143,8 +143,11 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
                 .expect("Correct configuration");
 
         // subscribes to our topic
-/// SBP M2 Calls to `unwrap` will crash the process if value is `None`
-        gossipsub.subscribe(&topic).unwrap();
+        let sub_rslt = gossipsub.subscribe(&topic);
+        match sub_rslt {
+            Ok(_) => info!("Subscribed to topic"),
+            Err(e) => return Err(format!("Failed to subscribe to topic: {:?}", e))?
+        }
 
         let mut cfg = RequestResponseConfig::default();
         cfg.set_request_timeout(Duration::from_secs(60));
