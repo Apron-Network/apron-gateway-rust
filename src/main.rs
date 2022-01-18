@@ -35,6 +35,7 @@ mod network;
 mod routes;
 mod service;
 mod state;
+mod usage_report;
 
 // substrate node rpc
 const WS_ENDPOINT: &str = "ws://127.0.0.1:9944";

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::iter;
 use std::time::Duration;
@@ -29,6 +29,7 @@ use crate::forward_service_utils::send_http_request_blocking;
 use crate::service::ApronService;
 use crate::state::{delete, get, set, AppState};
 use crate::{helpers, Opt};
+use crate::usage_report::UsageReport;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -191,6 +192,9 @@ pub async fn network_event_loop(
 
     let mut receiver = receiver.fuse();
 
+    // User has activities in the past record interval
+    let mut recording_reports: HashMap<String, UsageReport> = HashMap::new();
+
 /// SBP M2 What if events are received faster than they can be processed?
     loop {
         let share_data = data.clone();
@@ -259,6 +263,7 @@ pub async fn network_event_loop(
                             match request.schema {
                                 // Init connection request sent from Client
                                 0 => {
+                                    // TODO: Find usage report related to account_id from variable recording_reports, and create new one if not found. Then update statical data.
                                     let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.data).unwrap();
                                     info!("ProxyRequestInfo is {:?}", proxy_request_info);
 
