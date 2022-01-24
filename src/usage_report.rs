@@ -12,17 +12,12 @@ impl UsageReportManager {
     fn harvest(&self) {}
 
     fn add_record(&mut self, account_id: String, data_size: u128, is_upload: bool) {
-        let report = match self.account_reports.get(&account_id.clone()) {
-            Some(report) => *report.clone(),
-            None => {
-                let report = UsageReport::new(account_id.clone());
-                self.account_reports[&account_id.clone()] = report.clone();
-                report
-            }
-        };
+        let report = self
+            .account_reports
+            .entry(account_id.clone())
+            .or_insert(UsageReport::new(account_id.clone()));
 
-        report.inc_count(1);
-        report.inc_traffic(data_size, is_upload);
+        report.record_usage(1, data_size, is_upload);
     }
 }
 
@@ -52,7 +47,7 @@ impl UsageReport {
         };
     }
 
-    fn finalize(mut self) -> UsageReport {
+    fn finalize(&mut self) -> &mut UsageReport {
         self.end_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Clock may have gone backwards")
@@ -60,11 +55,9 @@ impl UsageReport {
         self
     }
 
-    fn inc_count(mut self, cnt: u32) {
+    fn record_usage(&mut self, cnt: u32, data_size: u128, is_upload: bool) {
         self.access_count += cnt;
-    }
 
-    fn inc_traffic(mut self, pack_size: u128, is_upload: bool) {
         if is_upload {
             self.upload_traffic += pack_size;
         } else {
