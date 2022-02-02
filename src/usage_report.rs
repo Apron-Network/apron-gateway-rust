@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::forward_service_models::ProxyRequestInfo;
+use crate::HttpProxyResponse;
+
 #[derive(Clone)]
 pub struct UsageReportManager {
     pub account_reports: HashMap<String, UsageReport>,
@@ -18,6 +21,20 @@ impl UsageReportManager {
             .or_insert(UsageReport::new(account_id.clone()));
 
         report.record_usage(1, data_size, is_upload);
+    }
+
+    pub fn add_record_from_proxy_request_info(&mut self, req_info: &ProxyRequestInfo) {
+        self.account_reports
+            .entry(req_info.clone().user_key)
+            .or_insert(UsageReport::new(req_info.clone().user_key))
+            .record_usage(1, req_info.clone().raw_body.len() as u128, true);
+    }
+
+    pub fn add_record_from_http_proxy_response(&mut self, proxy_resp: &HttpProxyResponse) {
+        self.account_reports
+            .entry(req_info.clone().user_key)
+            .or_insert(UsageReport::new(req_info.clone().user_key))
+            .record_usage(0, proxy_resp.body.len() as u128, false);
     }
 }
 
@@ -59,9 +76,9 @@ impl UsageReport {
         self.access_count += cnt;
 
         if is_upload {
-            self.upload_traffic += pack_size;
+            self.upload_traffic += data_size;
         } else {
-            self.download_traffic += pack_size;
+            self.download_traffic += data_size;
         }
     }
 }

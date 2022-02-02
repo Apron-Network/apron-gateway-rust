@@ -29,7 +29,7 @@ use crate::forward_service_utils::send_http_request_blocking;
 use crate::service::ApronService;
 use crate::state::{delete, get, set, AppState};
 use crate::{helpers, Opt};
-use crate::usage_report::UsageReport;
+use crate::usage_report::{UsageReport, UsageReportManager};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -192,8 +192,8 @@ pub async fn network_event_loop(
 
     let mut receiver = receiver.fuse();
 
-    // User has activities in the past record interval
-    let mut recording_reports: HashMap<String, UsageReport> = HashMap::new();
+    // Usage report manager
+    let mut usage_report_mgr = UsageReportManager{ account_reports: HashMap::new() };
 
 /// SBP M2 What if events are received faster than they can be processed?
     loop {
@@ -267,6 +267,8 @@ pub async fn network_event_loop(
                                     let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.data).unwrap();
                                     info!("ProxyRequestInfo is {:?}", proxy_request_info);
 
+                                    usage_report_mgr.clone().add_record_from_proxy_request_info(&proxy_request_info);
+
                                     let client_side_req_id = proxy_request_info.clone().request_id;
                                     let service_id = proxy_request_info.clone().service_id;
                                     debug!("All service data in remote: {:?}", service_data.clone());
@@ -290,6 +292,8 @@ pub async fn network_event_loop(
                                     } else {
                                         let resp = send_http_request_blocking(proxy_request_info.clone(), service.get_http_provider()).unwrap();
 
+                                        usage_report_mgr.clone().add_record_from_http_proxy_response(&proxy_request_info, resp);
+
                                         swarm.behaviour_mut()
                                                     .request_response
                                                     .send_response(channel, FileResponse(vec![1,2,3])).unwrap();
@@ -304,6 +308,9 @@ pub async fn network_event_loop(
                                     // Received proxy data from ClientSideGateway, and forward to service
                                     let proxy_data: ProxyData = bincode::deserialize(&request.data).unwrap();
                                     info!("Received proxy data request: {:?}", proxy_data);
+
+                                    // TODO: Get account_id from ProxyData, may need to add new field in struct
+                                    usage_report_mgr.clone().add_record_from_proxy_data(&proxy_data);
 
                                     swarm.behaviour_mut()
                                                 .request_response
