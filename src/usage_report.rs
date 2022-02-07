@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{HttpProxyResponse, ProxyData};
 use crate::forward_service_models::ProxyRequestInfo;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UsageReportManager {
     pub account_reports: HashMap<String, UsageReport>,
 }
@@ -43,7 +43,7 @@ impl UsageReportManager {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UsageReport {
     pub account_id: String,
     pub start_timestamp: u128,

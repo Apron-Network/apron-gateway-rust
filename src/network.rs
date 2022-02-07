@@ -183,6 +183,7 @@ pub async fn network_event_loop(
     data: AppState<ApronService>,
     req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
     opt: Opt,
+    usage_report_mgr: UsageReportManager,
     service_data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -191,11 +192,6 @@ pub async fn network_event_loop(
     swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
 
     let mut receiver = receiver.fuse();
-
-    // Usage report manager
-    let mut usage_report_mgr = UsageReportManager {
-        account_reports: HashMap::new(),
-    };
 
     /// SBP M2 What if events are received faster than they can be processed?
     loop {

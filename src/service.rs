@@ -13,6 +13,7 @@ use crate::contract::{add_service, call, exec};
 use crate::helpers::respond_json;
 use crate::network::Command;
 use crate::state::{all, set, values, AppState};
+use crate::UsageReportManager;
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
 pub struct ApronServiceProvider {
@@ -320,6 +321,13 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
     //     println!("{}: {}", key, value.id);
     // }
     HttpResponse::Ok().json(hdata)
+}
+
+pub async fn get_usage_reports(data: Data<UsageReportManager>) -> HttpResponse {
+    println!("[mgmt]: List All Usage Report");
+    let data = Some(data.clone());
+    println!("Usage reports: {:?}", data);
+    HttpResponse::Ok().finish()
 }
 
 pub async fn list_local_services(

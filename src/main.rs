@@ -22,6 +22,7 @@ use crate::service::{ApronService, SharedHandler};
 use crate::state::new_state;
 
 use crate::contract::{call, exec};
+use crate::usage_report::UsageReportManager;
 
 // mod event_loop;
 mod contract;
@@ -133,6 +134,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // let req_id_client_session_mapping = Data::new(Mutex::new(mpsc::Sender<HttpProxyResponse>));
     let req_id_client_session_mapping = new_state::<mpsc::Sender<HttpProxyResponse>>();
 
+    // Usage report manager
+    // The manager will be used in both mgr API and p2p handler, so put it here.
+    let mut usage_report_mgr = UsageReportManager {
+        account_reports: HashMap::new(),
+    };
+
     async_std::task::spawn(network::network_event_loop(
         swarm,
         command_receiver,
@@ -140,6 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         data.clone(),
         req_id_client_session_mapping.clone(),
         opt.clone(),
+        usage_report_mgr.clone(),
         data.clone(),
     ));
 
@@ -159,6 +167,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
     let mgmt_p2p_handler = p2p_handler.clone();
+    let mgmt_usage_report_mgr = web::Data::new(usage_report_mgr.clone());
 
     let mgmt_service = HttpServer::new(move || {
 // SBP M2 Consider less permissive configurations?
@@ -168,6 +177,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .app_data(data.clone())
             .app_data(mgmt_p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
+            .app_data(mgmt_usage_report_mgr.clone())
             .configure(routes)
     })
     .bind(opt.mgmt_addr)?
