@@ -28,8 +28,8 @@ use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestIn
 use crate::forward_service_utils::send_http_request_blocking;
 use crate::service::ApronService;
 use crate::state::{delete, get, set, AppState};
-use crate::{helpers, Opt};
 use crate::usage_report::{UsageReport, UsageReportManager};
+use crate::{helpers, Opt};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(event_process = false, out_event = "ComposedEvent")]
@@ -147,7 +147,7 @@ pub async fn new(secret_key_seed: Option<u8>) -> Result<Swarm<ComposedBehaviour>
         let sub_rslt = gossipsub.subscribe(&topic);
         match sub_rslt {
             Ok(_) => info!("Subscribed to topic"),
-            Err(e) => return Err(format!("Failed to subscribe to topic: {:?}", e))?
+            Err(e) => return Err(format!("Failed to subscribe to topic: {:?}", e))?,
         }
 
         let mut cfg = RequestResponseConfig::default();
@@ -193,9 +193,11 @@ pub async fn network_event_loop(
     let mut receiver = receiver.fuse();
 
     // Usage report manager
-    let mut usage_report_mgr = UsageReportManager{ account_reports: HashMap::new() };
+    let mut usage_report_mgr = UsageReportManager {
+        account_reports: HashMap::new(),
+    };
 
-/// SBP M2 What if events are received faster than they can be processed?
+    /// SBP M2 What if events are received faster than they can be processed?
     loop {
         let share_data = data.clone();
         // let share_service_peer_mapping = service_peer_mapping.clone();
@@ -292,7 +294,7 @@ pub async fn network_event_loop(
                                     } else {
                                         let resp = send_http_request_blocking(proxy_request_info.clone(), service.get_http_provider()).unwrap();
 
-                                        usage_report_mgr.clone().add_record_from_http_proxy_response(&proxy_request_info, resp);
+                                        usage_report_mgr.clone().add_record_from_http_proxy_response(&proxy_request_info, &resp);
 
                                         swarm.behaviour_mut()
                                                     .request_response
