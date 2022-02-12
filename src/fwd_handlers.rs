@@ -90,30 +90,30 @@ pub(crate) async fn forward_http_proxy_request(
             .await
             .unwrap();
 
-        let usage_args = ServiceUsageData {
-            service_uuid: service.clone().unwrap().clone().id,
-            nonce: "0".to_string(),
-            user_key: req_info.clone().user_key,
-            start_time: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_micros()
-                .to_string(),
-            end_time: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_micros()
-                .to_string(),
-            usage: "1".to_string(),
-            price_plan: "test_plan".to_string(),
-            cost: "1".to_string(),
-        };
-        command_sender
-            .send(Command::SubmitUsage {
-                args: usage_args.clone().to_contract_args(),
-            })
-            .await
-            .unwrap();
+        // let usage_args = ServiceUsageData {
+        //     service_uuid: service.clone().unwrap().clone().id,
+        //     nonce: "0".to_string(),
+        //     user_key: req_info.clone().user_key,
+        //     start_time: SystemTime::now()
+        //         .duration_since(UNIX_EPOCH)
+        //         .unwrap()
+        //         .as_micros()
+        //         .to_string(),
+        //     end_time: SystemTime::now()
+        //         .duration_since(UNIX_EPOCH)
+        //         .unwrap()
+        //         .as_micros()
+        //         .to_string(),
+        //     usage: "1".to_string(),
+        //     price_plan: "test_plan".to_string(),
+        //     cost: "1".to_string(),
+        // };
+        // command_sender
+        //     .send(Command::SubmitUsage {
+        //         args: usage_args.clone().to_contract_args(),
+        //     })
+        //     .await
+        //     .unwrap();
 
         match resp_receiver.next().await {
             Some(resp) => {
