@@ -12,7 +12,13 @@ pub struct UsageReportManager {
 
 impl UsageReportManager {
     // harvest collect data from all recorded accounts, clear all records and wait for new round of accounting
-    fn harvest(&self) {}
+    pub fn harvest(&mut self) -> HashMap<String, UsageReport> {
+        // TODO: Need lock or other thing to prevent data racing?
+        let mut result: HashMap<String, UsageReport> = HashMap::new();
+        result.extend(self.account_reports.clone());
+        self.account_reports.clear();
+        result
+    }
 
     fn add_record(&mut self, account_id: String, data_size: u128, is_upload: bool) {
         let report = self

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use actix_web::web::{Data, HttpResponse, Json};
@@ -13,6 +13,7 @@ use crate::contract::{add_service, call, exec};
 use crate::helpers::respond_json;
 use crate::network::Command;
 use crate::state::{all, set, values, AppState};
+use crate::usage_report::UsageReport;
 use crate::UsageReportManager;
 
 #[derive(Deserialize, Debug, Serialize, PartialEq, Clone)]
@@ -185,7 +186,7 @@ impl ApronServiceProvider {
     }
 }
 
-// #[derive(Debug,Serialize, PartialEq, Clone)]
+// #[derive(Debug, Serialize, PartialEq, Clone)]
 pub struct SharedHandler {
     pub command_sender: Mutex<mpsc::Sender<Command>>,
     // pub event_reciver: Mutex<mpsc::Receiver<Event>>,
@@ -325,8 +326,11 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
 
 pub async fn get_usage_reports(data: Data<UsageReportManager>) -> HttpResponse {
     println!("[mgmt]: List All Usage Report");
-    let data = Some(data.clone());
-    println!("Usage reports: {:?}", data);
+    let report_mgr = Some(data.clone());
+    if report_mgr.is_some() {
+        let report = report_mgr.unwrap().harvest();
+        println!("Usage reports: {:?}", report);
+    }
     HttpResponse::Ok().finish()
 }
 
