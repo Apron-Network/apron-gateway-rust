@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{HttpProxyResponse, ProxyData};
@@ -11,14 +10,17 @@ pub struct UsageReportManager {
 }
 
 impl UsageReportManager {
-    // harvest collect data from all recorded accounts, clear all records and wait for new round of accounting
-    pub fn harvest(&mut self) -> HashMap<String, UsageReport> {
-        // TODO: Need lock or other thing to prevent data racing?
-        let mut result: HashMap<String, UsageReport> = HashMap::new();
-        result.extend(self.account_reports.clone());
+    pub fn reset(&mut self) {
         self.account_reports.clear();
-        result
     }
+    // harvest collect data from all recorded accounts, clear all records and wait for new round of accounting
+    // pub fn harvest(self) -> HashMap<String, UsageReport> {
+    //     // TODO: Need lock or other thing to prevent data racing?
+    //     let mut result: HashMap<String, UsageReport> = HashMap::new();
+    //     result.extend(self.account_reports.clone());
+    //     self.account_reports.clear();
+    //     result
+    // }
 
     fn add_record(&mut self, account_id: String, data_size: u128, is_upload: bool) {
         let report = self

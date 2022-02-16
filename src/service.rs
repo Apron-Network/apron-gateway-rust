@@ -325,12 +325,14 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
 }
 
 pub async fn get_usage_reports(data: Data<UsageReportManager>) -> HttpResponse {
-    println!("[mgmt]: List All Usage Report");
+    println!("[mgmt]: Get All Usage Report");
     let report_mgr = Some(data.clone());
+    let mut report: HashMap<String, UsageReport> = HashMap::new();
     if report_mgr.is_some() {
-        let report = report_mgr.unwrap().harvest();
-        println!("Usage reports: {:?}", report);
+        report.extend(report_mgr.clone().unwrap().account_reports.clone());
+        report_mgr.clone().unwrap().account_reports.clone().clear();
     }
+    println!("Usage reports: {:?}", report);
     HttpResponse::Ok().finish()
 }
 
