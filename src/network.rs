@@ -366,7 +366,7 @@ pub async fn network_event_loop(
                     SwarmEvent::Behaviour(ComposedEvent::Kademlia(KademliaEvent::RoutingUpdated {
                         peer, is_new_peer, addresses, bucket_range, old_peer
                     })) => {
-                        println!("Peer: {:?}, Addresses: {:?}", peer, addresses);
+                        info!("Peer: {:?}, Addresses: {:?}", peer, addresses);
                         // swarm.behaviour_mut().kademlia.add_address(peer_id, addresses..clone());
                     }
 

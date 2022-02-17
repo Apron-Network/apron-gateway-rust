@@ -9,7 +9,7 @@ use env_logger::{Builder, Env};
 use futures::channel::mpsc;
 use futures::prelude::*;
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
-use log::info;
+use log::{info, error};
 use structopt::StructOpt;
 
 use crate::forward_service_actors::ServiceSideWsActor;
@@ -111,8 +111,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .kademlia
             .add_address(&peer_id, to_dial.clone());
         match swarm.dial_addr(to_dial) {
-            Ok(_) => println!("Dialed {:?}", dialing),
-            Err(e) => println!("Dial {:?} failed: {:?}", dialing, e),
+            Ok(_) => info!("Dialed {:?}", dialing),
+            Err(e) => error!("Dial {:?} failed: {:?}", dialing, e),
         };
     };
 
