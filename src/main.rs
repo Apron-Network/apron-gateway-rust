@@ -60,6 +60,7 @@ pub struct Opt {
     #[structopt(default_value = "8080", long)]
     forward_port: i32,
 
+    // Note: the mgmt_addr shouldn't contain http:// or https:// prefix, or there will be error said "failed to lookup address information: Name or service not known"
     #[structopt(default_value = "0.0.0.0:8082", long)]
     mgmt_addr: String,
 
@@ -96,6 +97,8 @@ fn init_logger() {
 async fn main() -> Result<(), Box<dyn Error>> {
     init_logger();
     let opt = Opt::from_args();
+
+    info!("options: {:?}", opt.clone());
 
     let mut swarm = network::new(opt.secret_key_seed).await.unwrap();
 
