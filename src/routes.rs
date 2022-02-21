@@ -1,6 +1,9 @@
 use actix_web::web;
 
-use crate::service::{delete_service, get_services, get_usage_reports, list_local_services, list_remote_services, list_service_peers, new_update_service};
+use crate::service::{
+    delete_service, get_services, get_usage_reports, list_local_services, list_remote_services,
+    list_service_peers, new_update_service,
+};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(

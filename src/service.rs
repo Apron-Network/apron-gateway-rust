@@ -328,11 +328,13 @@ pub async fn get_usage_reports(data: Data<UsageReportManager>) -> HttpResponse {
     println!("[mgmt]: Get All Usage Report");
     let report_mgr = Some(data.clone());
     let mut report: HashMap<String, UsageReport> = HashMap::new();
+    println!("report mgr: {:?}", report_mgr.is_some());
     if report_mgr.is_some() {
         report.extend(report_mgr.clone().unwrap().account_reports.clone());
-        report_mgr.clone().unwrap().account_reports.clone().clear();
+        //report_mgr.clone().unwrap().account_reports.clone().clear();
     }
     println!("Usage reports: {:?}", report);
+    println!("Usage reports mgr: {:?}", report_mgr.clone());
     HttpResponse::Ok().finish()
 }
 

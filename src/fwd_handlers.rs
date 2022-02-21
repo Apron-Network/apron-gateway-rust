@@ -44,12 +44,12 @@ pub(crate) async fn forward_http_proxy_request(
     local_peer_id: Data<PeerId>,
     request_id_client_session_mapping: AppState<Sender<HttpProxyResponse>>,
 ) -> impl Responder {
-    debug!("ClientSideGateway: Receive HTTP request: {:?}", req);
+    info!("ClientSideGateway: Receive HTTP request: {:?}", req);
 
     let (req_info, remote_peer_id) =
         prepare_for_sending_p2p_transaction(query_args, raw_body, req, false);
 
-    debug!("All services data in local: {:?}", service_data.clone());
+    info!("All services data in local: {:?}", service_data.clone());
     let service = get(service_data, req_info.clone().service_id);
     if service.is_none() {
         error!("Service {:?} not found", req_info.clone().service_id);
@@ -58,8 +58,8 @@ pub(crate) async fn forward_http_proxy_request(
             req_info.clone().service_id
         ))
     } else {
-        debug!("ClientSideGateway: Req info: {:?}", req_info);
-        debug!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
+        info!("ClientSideGateway: Req info: {:?}", req_info);
+        info!("ClientSideGateway: remote peer: {:?}", remote_peer_id);
 
         let (resp_sender, mut resp_receiver): (
             Sender<HttpProxyResponse>,
@@ -74,7 +74,7 @@ pub(crate) async fn forward_http_proxy_request(
             resp_sender.clone(),
         );
 
-        debug!(
+        info!(
             "ClientSideGateway: Fwd req id mapping: {:?}",
             request_id_client_session_mapping.as_ref()
         );
