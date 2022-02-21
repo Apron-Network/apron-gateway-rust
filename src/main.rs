@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Usage report manager
     // The manager will be used in both mgr API and p2p handler, so put it here.
-    let mut usage_report_mgr = UsageReportManager {
+    let usage_report_mgr = UsageReportManager {
         account_reports: HashMap::new(),
     };
 
@@ -170,10 +170,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mgmt_local_peer_id = web::Data::new(peer_id.clone());
     let mgmt_p2p_handler = p2p_handler.clone();
-    let mgmt_usage_report_mgr = web::Data::new(usage_report_mgr.clone());
+    let mgmt_usage_report_mgr = web::Data::new(usage_report_mgr);
 
     let mgmt_service = HttpServer::new(move || {
-// SBP M2 Consider less permissive configurations?
+        // SBP M2 Consider less permissive configurations?
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)

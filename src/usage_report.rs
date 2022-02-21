@@ -1,8 +1,10 @@
+use std::cell::RefCell;
+use log::{debug, error};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{HttpProxyResponse, ProxyData};
 use crate::forward_service_models::ProxyRequestInfo;
+use crate::{HttpProxyResponse, ProxyData};
 
 #[derive(Clone, Debug)]
 pub struct UsageReportManager {
@@ -32,10 +34,13 @@ impl UsageReportManager {
     }
 
     pub fn add_record_from_proxy_request_info(&mut self, req_info: &ProxyRequestInfo) {
+        error!("Add usage from proxy request info: {:?}", req_info);
+        error!("account report before add: {:?}", self.account_reports.clone());
         self.account_reports
             .entry(req_info.clone().user_key)
             .or_insert(UsageReport::new(req_info.clone().user_key))
             .record_usage(1, req_info.clone().raw_body.len() as u128, true);
+        error!("account reports after add: {:?}", self.account_reports.clone());
     }
 
     pub fn add_record_from_http_proxy_response(
@@ -45,7 +50,6 @@ impl UsageReportManager {
     ) {
         todo!("Add user key in HttpProxyResponse is not done yet");
     }
-
     pub fn add_record_from_proxy_data(&mut self, proxy_data: &ProxyData) {
         todo!("Add user key in ProxyData response is not done yet");
     }

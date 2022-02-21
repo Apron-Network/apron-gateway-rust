@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::forward_service_models::{HttpProxyResponse, ProxyData, ProxyRequestInfo};
 use crate::forward_service_utils::send_http_request_blocking;
+use crate::mpsc::{Receiver, Sender};
 use crate::service::ApronService;
 use crate::state::{delete, get, set, AppState};
 use crate::usage_report::{UsageReport, UsageReportManager};
@@ -183,7 +184,7 @@ pub async fn network_event_loop(
     data: AppState<ApronService>,
     req_id_client_session_mapping: AppState<mpsc::Sender<HttpProxyResponse>>,
     opt: Opt,
-    usage_report_mgr: UsageReportManager,
+    mut usage_report_mgr: UsageReportManager,
     service_data: AppState<ApronService>,
 ) {
     // Create a Gossipsub topic
@@ -265,7 +266,8 @@ pub async fn network_event_loop(
                                     let proxy_request_info: ProxyRequestInfo = bincode::deserialize(&request.data).unwrap();
                                     info!("ProxyRequestInfo is {:?}", proxy_request_info);
 
-                                    usage_report_mgr.clone().add_record_from_proxy_request_info(&proxy_request_info);
+                                    usage_report_mgr.add_record_from_proxy_request_info(&proxy_request_info);
+                                    error!("rpt mgr reports: {:?}", usage_report_mgr.account_reports.clone());
 
                                     let client_side_req_id = proxy_request_info.clone().request_id;
                                     let service_id = proxy_request_info.clone().service_id;
@@ -290,7 +292,7 @@ pub async fn network_event_loop(
                                     } else {
                                         let resp = send_http_request_blocking(proxy_request_info.clone(), service.get_http_provider()).unwrap();
 
-                                        usage_report_mgr.clone().add_record_from_http_proxy_response(&proxy_request_info, &resp);
+                                        //usage_report_mgr.clone().add_record_from_http_proxy_response(&proxy_request_info, &resp);
 
                                         swarm.behaviour_mut()
                                                     .request_response
