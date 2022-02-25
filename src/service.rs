@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
+use log::info;
 
 use actix_web::web::{Data, HttpResponse, Json};
 use actix_web::Error;
@@ -322,20 +323,6 @@ pub async fn get_services(data: AppState<ApronService>) -> HttpResponse {
     //     println!("{}: {}", key, value.id);
     // }
     HttpResponse::Ok().json(hdata)
-}
-
-pub async fn get_usage_reports(data: Data<UsageReportManager>) -> HttpResponse {
-    println!("[mgmt]: Get All Usage Report");
-    let report_mgr = Some(data.clone());
-    let mut report: HashMap<String, UsageReport> = HashMap::new();
-    println!("report mgr: {:?}", report_mgr.is_some());
-    if report_mgr.is_some() {
-        report.extend(report_mgr.clone().unwrap().account_reports.clone());
-        //report_mgr.clone().unwrap().account_reports.clone().clear();
-    }
-    println!("Usage reports: {:?}", report);
-    println!("Usage reports mgr: {:?}", report_mgr.clone());
-    HttpResponse::Ok().finish()
 }
 
 pub async fn list_local_services(

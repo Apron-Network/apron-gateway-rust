@@ -168,9 +168,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     .start();
 
-    let mgmt_local_peer_id = web::Data::new(peer_id.clone());
+    let mgmt_local_peer_id = Data::new(peer_id.clone());
     let mgmt_p2p_handler = p2p_handler.clone();
-    let mgmt_usage_report_mgr = web::Data::new(usage_report_mgr);
 
     let mgmt_service = HttpServer::new(move || {
         // SBP M2 Consider less permissive configurations?
@@ -180,7 +179,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .app_data(data.clone())
             .app_data(mgmt_p2p_handler.clone())
             .app_data(mgmt_local_peer_id.clone())
-            .app_data(mgmt_usage_report_mgr.clone())
             .configure(routes)
     })
     .bind(opt.mgmt_addr)?
