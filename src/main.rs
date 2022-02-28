@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Usage report manager
     // The manager will be used in both mgr API and p2p handler, so put it here.
-    let usage_report_mgr = UsageReportManager {
+    let mut usage_report_mgr = UsageReportManager {
         account_reports: HashMap::new(),
     };
 
@@ -266,7 +266,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    future::try_join(mgmt_service, fwd_service).await?;
+    future::try_join3(mgmt_service, fwd_service, usage_report_mgr.publish_records()).await?;
 
     Ok(())
 }
